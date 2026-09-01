@@ -2,7 +2,8 @@ import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
-const dbPath = resolve(process.cwd(), 'data/bookings.db');
+const onNetlify = Boolean(process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME);
+const dbPath = onNetlify ? '/tmp/bankside-bookings.db' : resolve(process.cwd(), 'data/bookings.db');
 
 let db: DatabaseSync | undefined;
 

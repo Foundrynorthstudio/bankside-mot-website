@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { SITE_URL } from '../data/site';
 
-export const prerender = false;
+export const prerender = true;
 
 const pages = [
   { path: '/', priority: '1.0', changefreq: 'weekly' },
