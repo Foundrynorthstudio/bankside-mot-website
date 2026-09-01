@@ -1,0 +1,3 @@
+.nvmrc text eol=lf
+netlify.toml text eol=lf
+*.toml text eol=lf
