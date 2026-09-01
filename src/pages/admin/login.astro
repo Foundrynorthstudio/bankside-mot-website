@@ -1,0 +1,64 @@
+---
+export const prerender = false;
+
+import '../../styles/global.css';
+import Logo from '../../components/Logo.astro';
+import { createAdminSession, readAdminSession, verifyAdminCredentials } from '../../lib/booking/auth';
+
+if (readAdminSession(Astro.cookies)) {
+  return Astro.redirect('/admin');
+}
+
+let error = '';
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const username = String(form.get('username') ?? '');
+  const password = String(form.get('password') ?? '');
+  if (verifyAdminCredentials(username, password)) {
+    createAdminSession(Astro.cookies);
+    const next = Astro.url.searchParams.get('next') || '/admin';
+    return Astro.redirect(next.startsWith('/admin') ? next : '/admin');
+  }
+  error = 'Those details were not recognised.';
+}
+---
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Workshop login | Bankside MOT & Repair</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  </head>
+  <body class="flex min-h-screen items-center justify-center bg-slate-100 px-4 font-sans text-slate-800">
+    <div class="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div class="mb-6 text-center">
+        <Logo class="mx-auto mb-4 h-28" />
+        <h1 class="text-2xl font-extrabold text-slate-900">Workshop login</h1>
+        <p class="mt-1 text-sm text-slate-500">Staff only. Manage the MOT booking calendar.</p>
+      </div>
+
+      {error && (
+        <p class="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>
+      )}
+
+      <form method="post" class="space-y-3">
+        <label class="block text-xs font-bold tracking-wide text-slate-600 uppercase">
+          Username
+          <input type="text" name="username" autocomplete="username" required class="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-brand-500" />
+        </label>
+        <label class="block text-xs font-bold tracking-wide text-slate-600 uppercase">
+          Password
+          <input type="password" name="password" autocomplete="current-password" required class="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-brand-500" />
+        </label>
+        <button type="submit" class="w-full rounded-xl bg-slate-900 py-3 text-sm font-semibold text-white">Log in</button>
+      </form>
+    </div>
+  </body>
+</html>

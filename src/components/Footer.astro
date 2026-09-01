@@ -1,0 +1,63 @@
+---
+import { business } from '../data/site';
+import Logo from './Logo.astro';
+---
+
+<footer class="bg-slate-900 text-slate-400 text-xs py-10 pb-24 md:pb-10">
+  <div class="container mx-auto px-4">
+    <div class="grid md:grid-cols-4 gap-8 mb-8">
+      <div>
+        <a href="/" class="mb-3 inline-block rounded-2xl bg-white p-2">
+          <Logo class="h-24 w-auto sm:h-28" />
+        </a>
+        <p class="text-slate-400 leading-relaxed">
+          Falkirk's trusted local MOT testing station and repair workshop. Fast turnaround, transparent fixed rates, and direct advice.
+        </p>
+      </div>
+
+      <div>
+        <div class="text-white font-semibold mb-3 uppercase tracking-wider">Site Navigation</div>
+        <ul class="space-y-2 font-medium">
+          <li><a href="/" class="hover:text-white">Home Page</a></li>
+          <li><a href="/about" class="hover:text-white">About Us & Team</a></li>
+          <li><a href="/services" class="hover:text-white">Services & Fixed Rates</a></li>
+          <li><a href="/finance" class="hover:text-white">0% Payment Assist</a></li>
+          <li><a href="/areas" class="hover:text-white">Falkirk Service Areas</a></li>
+          <li><a href="/contact" class="hover:text-white">Contact & Directions</a></li>
+          <li><a href="/admin/login" rel="nofollow" class="hover:text-white">Workshop login</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <div class="text-white font-semibold mb-3 uppercase tracking-wider">Workshop Services</div>
+        <ul class="space-y-2 font-medium">
+          <li><a href="/services" class="hover:text-white">Class 4 & Class 7 MOT Inspections</a></li>
+          <li><a href="/services" class="hover:text-white">Interim & Major Servicing</a></li>
+          <li><a href="/services" class="hover:text-white">ECU Computer Diagnostics</a></li>
+          <li><a href="/finance" class="hover:text-white">0% Payment Assist</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <div class="text-white font-semibold mb-3 uppercase tracking-wider">Contact & Location</div>
+        <div class="space-y-1">
+          <div>{business.streetAddress}</div>
+          <div>{business.addressLocality}, {business.postalCode}</div>
+          <div class="text-brand-500 font-bold pt-1">
+            Direct Tel: <a href={`tel:${business.telephone}`} class="hover:text-brand-400">{business.telephoneDisplay}</a>
+          </div>
+          <div>{business.openingHoursDisplay}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="border-t border-slate-800 pt-6 flex flex-col md:flex-row items-center justify-between text-[11px] text-slate-500 gap-4">
+      <div>© {new Date().getFullYear()} {business.legalName}. All Rights Reserved.</div>
+      <div class="flex space-x-4">
+        <a href="/privacy" class="hover:text-slate-300">Privacy Policy</a>
+        <a href="/terms" class="hover:text-slate-300">Terms & Conditions</a>
+        <a href="https://www.gov.uk/getting-an-mot" rel="noopener noreferrer" target="_blank" class="hover:text-slate-300">DVSA MOT guidance</a>
+      </div>
+    </div>
+  </div>
+</footer>

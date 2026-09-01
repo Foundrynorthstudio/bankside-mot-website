@@ -1,0 +1,46 @@
+---
+interface Props {
+  prompt: string;
+  quote?: string;
+  name?: string;
+  place?: string;
+}
+
+const { prompt, quote = '', name = '', place = 'Falkirk' } = Astro.props;
+const filled = quote.trim().length > 0 && name.trim().length > 0;
+---
+
+<figure class:list={['flex h-full flex-col justify-between rounded-2xl p-6', filled ? 'border border-slate-200 bg-white' : 'border border-dashed border-slate-300 bg-white']}>
+  <div class="space-y-3">
+    <div class="flex items-center justify-between">
+      <div class="flex text-xs text-amber-400">
+        <i class="fa-solid fa-star"></i>
+        <i class="fa-solid fa-star"></i>
+        <i class="fa-solid fa-star"></i>
+        <i class="fa-solid fa-star"></i>
+        <i class="fa-solid fa-star"></i>
+      </div>
+      <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Google review</span>
+    </div>
+    {filled ? (
+      <blockquote class="text-sm leading-relaxed text-slate-700">“{quote}”</blockquote>
+    ) : (
+      <blockquote class="text-sm leading-relaxed text-slate-500 italic">
+        “Paste a short quote about {prompt}.”
+      </blockquote>
+    )}
+  </div>
+  <figcaption class="mt-5 border-t border-slate-100 pt-4 text-xs text-slate-400">
+    {filled ? (
+      <>
+        <span class="font-semibold text-slate-600">{name}</span>
+        <span class="text-slate-400"> · {place} · Google</span>
+      </>
+    ) : (
+      <>
+        <span class="font-semibold text-slate-600">Customer name</span>
+        <span class="text-slate-400"> · {place} · Google</span>
+      </>
+    )}
+  </figcaption>
+</figure>

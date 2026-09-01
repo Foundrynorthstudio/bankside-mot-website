@@ -1,0 +1,108 @@
+---
+import '../styles/global.css';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import BookingModal from '../components/BookingModal.astro';
+import MobileActionBar from '../components/MobileActionBar.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import { business, canonicalPath, defaultDescription, defaultTitle } from '../data/site';
+import { pageJsonLd } from '../lib/seo';
+
+interface Props {
+  title?: string;
+  description?: string;
+  breadcrumbs?: { name: string; path: string }[];
+  faqs?: { question: string; answer: string }[];
+  noindex?: boolean;
+}
+
+const {
+  title = defaultTitle,
+  description = defaultDescription,
+  breadcrumbs = [],
+  faqs = [],
+  noindex = false,
+} = Astro.props;
+
+const path = Astro.url.pathname.replace(/\/$/, '') || '/';
+const canonical = canonicalPath(path);
+const ogImage = `${business.url}/og-image.png`;
+const schema = pageJsonLd({
+  type: path === '/' ? 'home' : 'page',
+  name: title,
+  description,
+  path,
+  breadcrumbs,
+  faqs,
+});
+const crumbItems = breadcrumbs.map((crumb, index) => ({
+  label: crumb.name,
+  href: index === breadcrumbs.length - 1 ? undefined : crumb.path,
+}));
+---
+
+<!DOCTYPE html>
+<html lang="en-GB" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="robots" content={noindex ? 'noindex, follow' : 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1'} />
+    <meta name="author" content={business.legalName} />
+    <meta name="geo.region" content="GB-SCT" />
+    <meta name="geo.placename" content="Falkirk" />
+    <meta name="geo.position" content={`${business.latitude};${business.longitude}`} />
+    <meta name="ICBM" content={`${business.latitude}, ${business.longitude}`} />
+    <meta name="theme-color" content="#115d50" />
+    <link rel="canonical" href={canonical} />
+    <link rel="alternate" hreflang="en-GB" href={canonical} />
+    <link rel="alternate" hreflang="x-default" href={canonical} />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+
+    <meta property="og:site_name" content={business.name} />
+    <meta property="og:locale" content="en_GB" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={`${business.name}, Falkirk — Class 4 and Class 7 MOT tests`} />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+    <script type="application/ld+json" set:html={JSON.stringify(schema)} />
+  </head>
+  <body
+    class="bg-white text-slate-800 font-sans antialiased selection:bg-brand-500 selection:text-white min-h-screen flex flex-col"
+    x-data="banksideApp"
+  >
+    <Header />
+    {crumbItems.length > 0 && <Breadcrumbs items={crumbItems} />}
+
+    <main class="flex-grow">
+      <slot />
+    </main>
+
+    <Footer />
+    <BookingModal />
+    <MobileActionBar />
+
+    <script>
+      import '../scripts/bankside';
+    </script>
+  </body>
+</html>

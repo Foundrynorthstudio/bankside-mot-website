@@ -1,0 +1,42 @@
+---
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+interface Props {
+  src: string;
+  label: string;
+  brief: string;
+  alt?: string;
+  class?: string;
+}
+
+const { src, label, brief, alt = label, class: className = '' } = Astro.props;
+const filename = src.split('/').pop() ?? src;
+const hasImage = existsSync(resolve(process.cwd(), `public${src}`));
+---
+
+<div class:list={['image-slot relative isolate overflow-hidden bg-slate-900', className]}>
+  {hasImage ? (
+    <img src={src} alt={alt} class="absolute inset-0 h-full w-full object-cover" />
+  ) : (
+    <div class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[radial-gradient(ellipse_at_center,_#1e293b_0%,_#0f172a_70%)] px-4 py-6 text-center">
+      <div class="pointer-events-none absolute inset-3 border border-white/10">
+        <span class="absolute -top-px -left-px h-3 w-3 border-t-2 border-l-2 border-brand-500"></span>
+        <span class="absolute -top-px -right-px h-3 w-3 border-t-2 border-r-2 border-brand-500"></span>
+        <span class="absolute -bottom-px -left-px h-3 w-3 border-b-2 border-l-2 border-brand-500"></span>
+        <span class="absolute -bottom-px -right-px h-3 w-3 border-b-2 border-r-2 border-brand-500"></span>
+      </div>
+      <div class="relative z-10 flex max-w-sm flex-col items-center gap-2">
+        <span class="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/5 text-brand-500">
+          <i class="fa-solid fa-camera"></i>
+        </span>
+        <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-500">Photo to capture</p>
+        <p class="text-sm font-bold text-white">{label}</p>
+        <p class="line-clamp-3 text-xs leading-relaxed text-slate-400">{brief}</p>
+        <code class="mt-1 max-w-full break-all rounded-md border border-white/10 bg-black/30 px-2 py-1 font-mono text-[10px] text-slate-300">
+          public/images/{filename}
+        </code>
+      </div>
+    </div>
+  )}
+</div>

@@ -1,0 +1,17 @@
+---
+interface Props {
+  variant?: 'full' | 'mark';
+  class?: string;
+}
+
+const { variant = 'full', class: className = '' } = Astro.props;
+const full = variant === 'full';
+---
+
+<img
+  src={full ? '/images/logo.png' : '/images/logo-mark.png'}
+  alt="Bankside MOT & Repair"
+  width={full ? 721 : 512}
+  height={full ? 661 : 512}
+  class:list={['w-auto object-contain', className]}
+/>

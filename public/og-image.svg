@@ -1,0 +1,12 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#0f172a"/>
+  <rect x="0" y="0" width="12" height="630" fill="#059669"/>
+  <circle cx="1080" cy="90" r="160" fill="#059669" fill-opacity="0.08"/>
+  <circle cx="1140" cy="540" r="200" fill="#059669" fill-opacity="0.06"/>
+  <rect x="80" y="200" width="64" height="64" rx="16" fill="#059669"/>
+  <path d="M112 212c-8 5-17 7-24 7v21c0 13 9 21 24 26 15-5 24-13 24-26v-21c-7 0-16-2-24-7z" fill="#fff"/>
+  <text x="164" y="245" font-family="Arial, Helvetica, sans-serif" font-size="36" font-weight="700" fill="#ffffff">BANKSIDE MOT &amp; REPAIR</text>
+  <text x="80" y="340" font-family="Arial, Helvetica, sans-serif" font-size="56" font-weight="800" fill="#ffffff">Class 4 &amp; Class 7 MOT tests</text>
+  <text x="80" y="408" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="600" fill="#34d399">Falkirk · Castlelaurie Industrial Estate</text>
+  <text x="80" y="520" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="500" fill="#94a3b8">Servicing · Diagnostics · Transparent pricing</text>
+</svg>

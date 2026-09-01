@@ -1,0 +1,36 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { business } from '../data/site';
+---
+
+<Layout
+  title="Terms & Conditions | Bankside MOT & Repair Falkirk"
+  description="Booking terms for MOT tests, servicing and repairs at Bankside MOT & Repair, Castlelaurie Industrial Estate, Falkirk."
+  breadcrumbs={[
+    { name: 'Home', path: '/' },
+    { name: 'Terms & Conditions', path: '/terms' },
+  ]}
+>
+  <div class="bg-white py-12">
+    <div class="container mx-auto max-w-3xl px-4 space-y-6 text-sm leading-relaxed text-slate-600">
+      <h1 class="text-3xl font-extrabold text-slate-900">Terms & Conditions</h1>
+      <p>These terms cover online and phone bookings with {business.legalName}.</p>
+      <h2 class="text-xl font-bold text-slate-900">Bookings</h2>
+      <p>
+        An online booking reserves a diary slot. Please arrive a few minutes before the time shown. If you cannot attend, call {business.telephoneDisplay} so we can free the slot. Same-day slots may close 30 minutes before the start time.
+      </p>
+      <h2 class="text-xl font-bold text-slate-900">Prices</h2>
+      <p>
+        MOT prices are fixed as shown. Servicing prices are “from” figures and can change with vehicle type, engine oil spec, or extra parts. Repair work is quoted and agreed before we start.
+      </p>
+      <h2 class="text-xl font-bold text-slate-900">MOT tests</h2>
+      <p>
+        MOT inspections follow DVSA standards. A test result is not a guarantee of future condition. Failed tests that we repair here include a free 10-day retest, subject to DVSA rules.
+      </p>
+      <h2 class="text-xl font-bold text-slate-900">Payment</h2>
+      <p>
+        Pay at the garage unless you apply for 0% Payment Assist on eligible repair bills over £100. Payment Assist is subject to status.
+      </p>
+    </div>
+  </div>
+</Layout>

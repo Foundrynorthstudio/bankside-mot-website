@@ -1,0 +1,267 @@
+---
+import Layout from '../layouts/Layout.astro';
+import ImageSlot from '../components/ImageSlot.astro';
+import ReviewSlot from '../components/ReviewSlot.astro';
+import { photoExists, photos } from '../data/photos';
+import { reviews } from '../data/reviews';
+
+const hasHeroPhoto = photoExists(photos.heroWorkshop.src);
+const hasTeamBandPhoto = photoExists(photos.teamBand.src);
+---
+
+<Layout>
+  <section class="relative overflow-hidden border-b border-slate-900">
+    <div class="absolute inset-0">
+      <ImageSlot
+        src={photos.heroWorkshop.src}
+        label={photos.heroWorkshop.label}
+        brief={photos.heroWorkshop.brief}
+        alt="Bankside MOT & Repair workshop bay in Falkirk"
+        class="h-full w-full"
+      />
+    </div>
+    <div class:list={['absolute inset-0', hasHeroPhoto ? 'bg-gradient-to-r from-slate-950/92 via-slate-950/75 to-slate-950/45' : 'bg-gradient-to-r from-slate-950/80 via-slate-950/55 to-slate-950/30']}></div>
+
+    <div class="container relative z-10 mx-auto px-4 py-14 lg:py-20">
+      <div class="grid items-center gap-12 lg:grid-cols-12">
+        <div class="space-y-6 text-center lg:col-span-7 lg:text-left">
+          <div class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 text-xs font-semibold text-emerald-200">
+            <i class="fa-solid fa-circle-check text-brand-500"></i>
+            <span>Falkirk’s Award-Winning Independent MOT & Repair Studio</span>
+          </div>
+
+          <h1 class="text-4xl font-extrabold leading-[1.1] tracking-tight text-white sm:text-5xl lg:text-6xl">
+            MOT Tests, Servicing & Honest <br class="hidden sm:inline" />
+            <span class="text-brand-500">MOT & Repair in Falkirk</span>
+          </h1>
+
+          <p class="mx-auto max-w-2xl text-base font-normal leading-relaxed text-slate-300 sm:text-lg lg:mx-0">
+            Independent mechanic expertise with clear, fixed pricing. DVSA approved Class 4 & Class 7 MOT tests, dealer-spec vehicle servicing, and diagnostics at Castlelaurie Industrial Estate.
+          </p>
+
+          <div class="flex flex-wrap items-center justify-center gap-3 pt-2 text-xs font-medium text-slate-700 lg:justify-start">
+            <span class="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 shadow-sm"><i class="fa-solid fa-shield-check text-brand-600"></i> Free 10-Day Retest</span>
+            <span class="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 shadow-sm"><i class="fa-solid fa-clock text-brand-600"></i> Same-Day Slots Available</span>
+            <span class="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 shadow-sm"><i class="fa-solid fa-percent text-brand-600"></i> 0% Payment Assist</span>
+          </div>
+
+          <div class="flex items-center justify-center gap-4 pt-3 lg:justify-start">
+            <div class="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-white px-4 py-2.5 shadow-sm">
+              <div class="flex text-xs text-amber-400">
+                <i class="fa-solid fa-star"></i>
+                <i class="fa-solid fa-star"></i>
+                <i class="fa-solid fa-star"></i>
+                <i class="fa-solid fa-star"></i>
+                <i class="fa-solid fa-star"></i>
+              </div>
+              <div class="text-left">
+                <div class="text-xs font-bold text-slate-900">4.9 / 5.0 Rated</div>
+                <div class="text-[11px] text-slate-500">67+ Verified Google Reviews</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="lg:col-span-5">
+          <div class="relative rounded-2xl border border-slate-200 bg-white p-6 shadow-xl soft-shadow">
+            <div class="mb-6 text-center">
+              <span class="rounded-full border border-brand-100 bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-600">Live Garage Availability</span>
+              <h2 class="mt-2 text-xl font-bold text-slate-900">Check Your Vehicle & Book Online</h2>
+              <p class="mt-1 text-sm text-slate-500">Instant DVLA MOT status lookup & booking calendar</p>
+            </div>
+
+            <div class="space-y-4">
+              <div>
+                <div class="relative flex items-center overflow-hidden rounded-xl border-2 border-slate-900 shadow-md">
+                  <div class="uk-plate-blue flex flex-col items-center justify-center px-3 py-3.5 text-[10px] font-bold leading-tight select-none">
+                    <i class="fa-solid fa-car-side mb-0.5 text-xs"></i>
+                    <span>UK</span>
+                  </div>
+                  <input
+                    type="text"
+                    x-model="vrmInput"
+                    @keyup.enter="lookupVehicle()"
+                    placeholder="FK68 MOT"
+                    class="uk-plate w-full px-4 py-3 text-center text-2xl font-bold tracking-widest uppercase outline-none placeholder-slate-700/40 sm:text-3xl"
+                  />
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between text-xs text-slate-500">
+                <span>Try demo reg: <button type="button" @click="setDemoVRM('SK19 MOT')" class="font-semibold text-brand-600 underline">SK19 MOT</button></span>
+              </div>
+
+              <button
+                type="button"
+                @click="lookupVehicle()"
+                :disabled="isSearchingVehicle"
+                class="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-6 py-3.5 text-sm font-semibold tracking-wide text-white shadow-md transition hover:bg-brand-700"
+              >
+                <span x-show="!isSearchingVehicle" class="flex items-center gap-2">
+                  <i class="fa-solid fa-magnifying-glass"></i> Check Vehicle & View Available Slots
+                </span>
+                <span x-show="isSearchingVehicle" x-cloak class="flex items-center gap-2">
+                  <i class="fa-solid fa-circle-notch animate-spin"></i> Fetching Vehicle Details...
+                </span>
+              </button>
+            </div>
+
+            <div x-show="vrmFound" x-cloak x-transition class="mt-5 border-t border-slate-100 pt-4">
+              <div class="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
+                <div class="flex items-center justify-between">
+                  <span class="font-medium text-slate-500">Vehicle Found:</span>
+                  <span class="text-sm font-bold text-slate-900" x-text="vehicleData.makeModel"></span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="font-medium text-slate-500">Engine / Fuel:</span>
+                  <span class="font-medium text-slate-700" x-text="vehicleData.engineFuel"></span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="font-medium text-slate-500">MOT Status:</span>
+                  <span class="rounded-full bg-emerald-100 px-2.5 py-0.5 font-semibold text-emerald-800" x-text="vehicleData.motDue"></span>
+                </div>
+              </div>
+
+              <button type="button" @click="openBookingModal()" class="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-3 text-xs font-semibold tracking-wide text-white transition hover:bg-slate-800">
+                <span>Select Service & Pick Date/Time</span>
+                <i class="fa-solid fa-arrow-right text-brand-500"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {!hasHeroPhoto && (
+        <p class="mt-8 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-[11px] text-slate-300 lg:max-w-xl">
+          <i class="fa-solid fa-camera mr-1.5 text-brand-500"></i>
+          Hero photo to capture: <span class="font-semibold text-white">{photos.heroWorkshop.label}</span>
+          <span class="text-slate-400"> — drop</span>
+          <code class="mx-1 font-mono text-brand-500">public/images/hero-workshop.jpg</code>
+          <span class="text-slate-400">then refresh. It will replace this placeholder automatically.</span>
+        </p>
+      )}
+    </div>
+  </section>
+
+  <section class="bg-white py-16">
+    <div class="container mx-auto px-4">
+      <div class="mb-10 flex flex-col justify-between md:flex-row md:items-end">
+        <div>
+          <span class="rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-xs font-semibold tracking-wider text-brand-600 uppercase">Our Services</span>
+          <h2 class="mt-2 text-2xl font-extrabold text-slate-900 sm:text-3xl">Transparent Workshop Pricing</h2>
+        </div>
+        <a href="/services" class="mt-3 flex items-center gap-1.5 text-sm font-semibold tracking-wide text-brand-600 hover:text-brand-700 md:mt-0">
+          <span>View All Fixed Price Menus</span>
+          <i class="fa-solid fa-arrow-right"></i>
+        </a>
+      </div>
+
+      <div class="grid gap-6 md:grid-cols-3">
+        <div class="hover-lift flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/90 bg-white">
+          <ImageSlot
+            src={photos.serviceMot.src}
+            label={photos.serviceMot.label}
+            brief={photos.serviceMot.brief}
+            class="aspect-[16/10] w-full"
+          />
+          <div class="flex flex-1 flex-col justify-between p-6">
+            <div class="space-y-3">
+              <h3 class="text-xl font-bold text-slate-900">Class 4 & Class 7 MOTs</h3>
+              <p class="text-sm leading-relaxed text-slate-600">Official DVSA inspection facility for passenger cars, light commercial goods, motorhomes, and fleet vans up to 3,500kg GTW.</p>
+              <div class="text-lg font-extrabold text-slate-900">Class 4: £40 • Class 7: £50</div>
+            </div>
+            <button type="button" @click="quickBook('Class 4 MOT', 40)" class="mt-6 w-full rounded-xl bg-slate-900 py-2.5 text-xs font-semibold text-white transition hover:bg-slate-800">Book MOT Test Slot</button>
+          </div>
+        </div>
+
+        <div class="hover-lift flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/90 bg-white">
+          <ImageSlot
+            src={photos.serviceServicing.src}
+            label={photos.serviceServicing.label}
+            brief={photos.serviceServicing.brief}
+            class="aspect-[16/10] w-full"
+          />
+          <div class="flex flex-1 flex-col justify-between p-6">
+            <div class="space-y-3">
+              <h3 class="text-xl font-bold text-slate-900">Interim & Major Servicing</h3>
+              <p class="text-sm leading-relaxed text-slate-600">Manufacturer-compliant routine servicing using OEM filters and Mobil 1 synthetic lubricants. Keeps your warranty 100% intact.</p>
+              <div class="text-lg font-extrabold text-slate-900">Interim from £120 • Major from £185</div>
+            </div>
+            <button type="button" @click="quickBook('Major Service', 185)" class="mt-6 w-full rounded-xl bg-slate-900 py-2.5 text-xs font-semibold text-white transition hover:bg-slate-800">Book Vehicle Service</button>
+          </div>
+        </div>
+
+        <div class="hover-lift flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/90 bg-white">
+          <ImageSlot
+            src={photos.serviceDiagnostics.src}
+            label={photos.serviceDiagnostics.label}
+            brief={photos.serviceDiagnostics.brief}
+            class="aspect-[16/10] w-full"
+          />
+          <div class="flex flex-1 flex-col justify-between p-6">
+            <div class="space-y-3">
+              <h3 class="text-xl font-bold text-slate-900">Diagnostics & Brakes</h3>
+              <p class="text-sm leading-relaxed text-slate-600">Dealer-level diagnostic software for warning lights, ABS, airbag, DPF regeneration, and complete brake disc & pad replacements.</p>
+              <div class="text-lg font-extrabold text-slate-900">Computer Scan: £45</div>
+            </div>
+            <button type="button" @click="quickBook('Diagnostic Scan', 45)" class="mt-6 w-full rounded-xl bg-slate-900 py-2.5 text-xs font-semibold text-white transition hover:bg-slate-800">Book Diagnostic Scan</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="relative overflow-hidden py-20">
+    <div class="absolute inset-0">
+      <ImageSlot
+        src={photos.teamBand.src}
+        label={photos.teamBand.label}
+        brief={photos.teamBand.brief}
+        alt="Bankside MOT & Repair technicians in the workshop"
+        class="h-full w-full"
+      />
+    </div>
+    <div class:list={['absolute inset-0', hasTeamBandPhoto ? 'bg-slate-950/80' : 'bg-slate-950/65']}></div>
+    <div class="container relative z-10 mx-auto px-4">
+      <div class="grid items-center gap-8 lg:grid-cols-12">
+        <div class="space-y-3 lg:col-span-8">
+          <span class="text-xs font-semibold tracking-wider text-brand-500 uppercase"><i class="fa-solid fa-user-gear mr-1"></i> Falkirk Mechanic Team</span>
+          <h2 class="text-2xl font-extrabold text-white sm:text-3xl">Decades of Local Workshop Experience</h2>
+          <p class="max-w-2xl text-sm leading-relaxed text-slate-300 sm:text-base">
+            Lead master tech Dave MacIntyre and DVSA tester Craig Henderson deliver clear advice, transparent upfront quotes, and guaranteed mechanical repairs without inflated dealer labor rates.
+          </p>
+          {!hasTeamBandPhoto && (
+            <p class="text-[11px] text-slate-400">
+              Photo to capture: <span class="font-semibold text-white">{photos.teamBand.label}</span>
+              <code class="mx-1 font-mono text-brand-500">public/images/team-band.jpg</code>
+            </p>
+          )}
+        </div>
+        <div class="flex justify-start lg:col-span-4 lg:justify-end">
+          <a href="/about" class="rounded-xl bg-brand-600 px-5 py-3 text-xs font-semibold text-white shadow-sm transition hover:bg-brand-700">
+            Meet Our Workshop Engineers
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="border-t border-slate-100 bg-slate-50 py-16">
+    <div class="container mx-auto px-4">
+      <div class="mb-10 flex flex-col justify-between gap-3 md:flex-row md:items-end">
+        <div>
+          <span class="rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-xs font-semibold tracking-wider text-brand-600 uppercase">From Google</span>
+          <h2 class="mt-2 text-2xl font-extrabold text-slate-900 sm:text-3xl">What Falkirk Drivers Say</h2>
+          <p class="mt-1 text-sm text-slate-600">Replace these slots with 2–3 short quotes from your 67+ Google reviews.</p>
+        </div>
+        <div class="text-sm font-semibold text-slate-900">4.9 / 5.0 · 67+ reviews</div>
+      </div>
+
+      <div class="grid gap-6 md:grid-cols-3">
+        {reviews.map((review) => (
+          <ReviewSlot prompt={review.prompt} quote={review.quote} name={review.name} place={review.place} />
+        ))}
+      </div>
+    </div>
+  </section>
+</Layout>

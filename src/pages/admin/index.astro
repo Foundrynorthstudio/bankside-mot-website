@@ -1,0 +1,317 @@
+---
+export const prerender = false;
+
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { isEmailConfigured } from '../../lib/booking/auth';
+import { SERVICES, SLOT_TIMES } from '../../lib/booking/config';
+import { addDaysISO, formatDayHeading, formatLongDate, mondayOfWeek, todayISO, weekdaysFrom } from '../../lib/booking/dates';
+import { createBooking, getBooking, listBookingsBetween, SlotTakenError, updateBookingStatus } from '../../lib/booking/db';
+import { backfillCustomersFromBookings } from '../../lib/booking/customers';
+import { sendBookingEmails } from '../../lib/booking/email';
+import type { Booking } from '../../lib/booking/types';
+import { validatePublicBooking } from '../../lib/booking/validate';
+
+const url = Astro.url;
+backfillCustomersFromBookings();
+const today = todayISO();
+const requestedWeek = url.searchParams.get('week') || today;
+const monday = mondayOfWeek(/^\d{4}-\d{2}-\d{2}$/.test(requestedWeek) ? requestedWeek : today);
+const days = weekdaysFrom(monday);
+const prevWeek = addDaysISO(monday, -7);
+const nextWeek = addDaysISO(monday, 7);
+const selectedId = url.searchParams.get('id');
+const compose = url.searchParams.get('slot');
+
+let notice = url.searchParams.get('notice') || '';
+let error = url.searchParams.get('error') || '';
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const action = String(form.get('action') ?? '');
+  const week = String(form.get('week') ?? monday);
+  const returnTo = (extra: Record<string, string>) => {
+    const next = new URL('/admin', url.origin);
+    next.searchParams.set('week', week);
+    for (const [key, value] of Object.entries(extra)) {
+      if (value) next.searchParams.set(key, value);
+    }
+    return Astro.redirect(`${next.pathname}${next.search}`);
+  };
+
+  try {
+    if (action === 'create') {
+      const { errors, value } = validatePublicBooking(
+        {
+          service: String(form.get('service') ?? ''),
+          date: String(form.get('date') ?? ''),
+          time: String(form.get('time') ?? ''),
+          vrm: String(form.get('vrm') ?? ''),
+          vehicle_make_model: String(form.get('vehicle_make_model') ?? ''),
+          customer_name: String(form.get('customer_name') ?? ''),
+          customer_phone: String(form.get('customer_phone') ?? ''),
+          customer_email: String(form.get('customer_email') ?? ''),
+          payment_method: String(form.get('payment_method') ?? 'Pay at Garage'),
+          notes: String(form.get('notes') ?? ''),
+        },
+        { requireEmail: false, allowPast: true },
+      );
+      if (errors.length > 0 || !value) {
+        return returnTo({ error: errors[0] ?? 'Check the booking details.', slot: `${String(form.get('date'))}_${String(form.get('time'))}` });
+      }
+      const booking = createBooking({
+        ...value,
+        source: String(form.get('source') ?? 'phone') as 'phone' | 'walk-in' | 'admin',
+        status: 'confirmed',
+      });
+      try {
+        await sendBookingEmails(booking);
+      } catch (emailError) {
+        console.error(emailError);
+      }
+      return returnTo({ notice: `Saved ${booking.id} for ${booking.vrm}.`, id: booking.id });
+    }
+
+    if (action === 'block') {
+      const date = String(form.get('date') ?? '');
+      const time = String(form.get('time') ?? '');
+      createBooking({
+        service: 'Unavailable',
+        price: 0,
+        date,
+        time,
+        vrm: 'BLOCKED',
+        customer_name: 'Blocked slot',
+        customer_phone: '00000000000',
+        customer_email: '',
+        notes: String(form.get('notes') ?? 'Marked unavailable'),
+        source: 'admin',
+        status: 'blocked',
+      });
+      return returnTo({ notice: `Blocked ${date} at ${time}.` });
+    }
+
+    if (action === 'cancel' || action === 'complete') {
+      const id = String(form.get('id') ?? '');
+      const updated = updateBookingStatus(id, action === 'cancel' ? 'cancelled' : 'completed');
+      if (!updated) return returnTo({ error: 'Booking not found.' });
+      return returnTo({
+        notice: action === 'cancel' ? `${id} cancelled. The slot is free again.` : `${id} marked complete.`,
+        id: action === 'complete' ? id : '',
+      });
+    }
+  } catch (caught) {
+    const message = caught instanceof SlotTakenError ? caught.message : 'Could not update the diary.';
+    return returnTo({ error: message });
+  }
+}
+
+const bookings = listBookingsBetween(days[0], days[4]);
+const bySlot = new Map<string, Booking>();
+for (const booking of bookings) {
+  bySlot.set(`${booking.date}_${booking.time}`, booking);
+}
+
+const selected = selectedId ? getBooking(selectedId) : null;
+const composeDate = compose?.split('_')[0] ?? '';
+const composeTime = compose?.split('_')[1] ?? '';
+const emailReady = isEmailConfigured();
+
+function cellClass(booking: Booking | undefined) {
+  if (!booking) return 'border-slate-200 bg-white hover:border-brand-300 hover:bg-brand-50/40';
+  if (booking.status === 'blocked') return 'border-slate-300 bg-slate-200';
+  if (booking.status === 'completed') return 'border-slate-200 bg-slate-50';
+  if (booking.service.includes('MOT')) return 'border-emerald-200 bg-emerald-50';
+  if (booking.service.includes('Diagnostic')) return 'border-amber-200 bg-amber-50';
+  return 'border-sky-200 bg-sky-50';
+}
+---
+
+<AdminLayout title="Workshop diary | Bankside MOT & Repair" notice={notice} error={error}>
+  {!emailReady && (
+    <p class="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+      Bookings are saving, but garage emails will not send until SMTP is set in <code class="font-mono">.env</code> (SMTP_HOST, SMTP_USER, SMTP_PASS, GARAGE_EMAIL).
+    </p>
+  )}
+
+  <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h1 class="text-2xl font-extrabold text-slate-900">Booking calendar</h1>
+      <p class="text-sm text-slate-500">Week of {formatDayHeading(monday)} — {formatDayHeading(days[4])}</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href={`/admin?week=${prevWeek}`} class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">Previous</a>
+      <a href={`/admin?week=${today}`} class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">This week</a>
+      <a href={`/admin?week=${nextWeek}`} class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">Next</a>
+    </div>
+  </div>
+
+  <div class="grid gap-6 lg:grid-cols-12">
+    <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white lg:col-span-8">
+      <table class="w-full min-w-[720px] border-collapse text-left text-xs">
+        <thead>
+          <tr class="border-b border-slate-200 bg-slate-50 text-slate-600">
+            <th class="w-20 px-3 py-3 font-semibold">Time</th>
+            {days.map((day) => (
+              <th class="px-2 py-3 font-semibold">
+                <div>{formatDayHeading(day)}</div>
+                {day === today && <div class="text-[10px] font-bold tracking-wide text-brand-600 uppercase">Today</div>}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {SLOT_TIMES.map((time) => (
+            <tr class="border-b border-slate-100">
+              <th class="px-3 py-2 font-bold text-slate-700">{time}</th>
+              {days.map((day) => {
+                const booking = bySlot.get(`${day}_${time}`);
+                return (
+                  <td class="p-1.5 align-top">
+                    {booking ? (
+                      <a href={`/admin?week=${monday}&id=${booking.id}`} class:list={['block min-h-[4.5rem] rounded-xl border p-2 transition', cellClass(booking)]}>
+                        <div class="font-bold text-slate-900">{booking.status === 'blocked' ? 'Blocked' : booking.vrm}</div>
+                        <div class="text-[11px] text-slate-600">{booking.status === 'blocked' ? booking.notes || 'Unavailable' : booking.customer_name}</div>
+                        <div class="mt-1 text-[10px] font-semibold text-slate-500">{booking.service}</div>
+                      </a>
+                    ) : (
+                      <a href={`/admin?week=${monday}&slot=${day}_${time}`} class:list={['block min-h-[4.5rem] rounded-xl border border-dashed p-2 text-slate-400 transition', cellClass(undefined)]}>
+                        <div class="text-[11px] font-semibold">Open</div>
+                        <div class="text-[10px]">Add or block</div>
+                      </a>
+                    )}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+
+    <aside class="space-y-4 lg:col-span-4">
+      {selected && (
+        <section class="rounded-2xl border border-slate-200 bg-white p-5">
+          <div class="mb-3 flex items-start justify-between gap-2">
+            <div>
+              <div class="text-[10px] font-semibold tracking-wider text-brand-600 uppercase">{selected.status}</div>
+              <h2 class="text-lg font-bold text-slate-900">{selected.id}</h2>
+            </div>
+            <a href={`/admin?week=${monday}`} class="text-xs text-slate-500 hover:text-slate-800">Close</a>
+          </div>
+          <dl class="space-y-1.5 text-sm">
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">When</dt><dd class="font-semibold text-slate-900">{formatLongDate(selected.date)} · {selected.time}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">Service</dt><dd class="font-semibold text-slate-900">{selected.service}</dd></div>
+            {selected.status !== 'blocked' && (
+              <>
+                <div class="flex justify-between gap-3"><dt class="text-slate-500">VRM</dt><dd class="font-semibold text-slate-900">{selected.vrm}</dd></div>
+                <div class="flex justify-between gap-3"><dt class="text-slate-500">Vehicle</dt><dd class="text-right text-slate-800">{selected.vehicle_make_model || '—'}</dd></div>
+                <div class="flex justify-between gap-3"><dt class="text-slate-500">Customer</dt><dd class="text-right font-semibold text-slate-900">{selected.customer_name}</dd></div>
+                {selected.customer_id && (
+                  <div class="flex justify-between gap-3">
+                    <dt class="text-slate-500">CRM</dt>
+                    <dd><a href={`/admin/customers/${selected.customer_id}`} class="font-semibold text-brand-700">Open record</a></dd>
+                  </div>
+                )}
+                <div class="flex justify-between gap-3"><dt class="text-slate-500">Phone</dt><dd><a class="text-brand-700" href={`tel:${selected.customer_phone}`}>{selected.customer_phone}</a></dd></div>
+                <div class="flex justify-between gap-3"><dt class="text-slate-500">Email</dt><dd class="text-right">{selected.customer_email || '—'}</dd></div>
+                <div class="flex justify-between gap-3"><dt class="text-slate-500">Payment</dt><dd>{selected.payment_method}</dd></div>
+                <div class="flex justify-between gap-3"><dt class="text-slate-500">Source</dt><dd class="capitalize">{selected.source}</dd></div>
+              </>
+            )}
+            {selected.notes && <div class="pt-2 text-slate-600">{selected.notes}</div>}
+          </dl>
+          {selected.status === 'confirmed' && (
+            <div class="mt-4 grid grid-cols-2 gap-2">
+              <form method="post">
+                <input type="hidden" name="week" value={monday} />
+                <input type="hidden" name="id" value={selected.id} />
+                <input type="hidden" name="action" value="complete" />
+                <button class="w-full rounded-xl bg-brand-600 py-2.5 text-xs font-semibold text-white">Mark complete</button>
+              </form>
+              <form method="post">
+                <input type="hidden" name="week" value={monday} />
+                <input type="hidden" name="id" value={selected.id} />
+                <input type="hidden" name="action" value="cancel" />
+                <button class="w-full rounded-xl border border-red-200 bg-red-50 py-2.5 text-xs font-semibold text-red-800">Cancel slot</button>
+              </form>
+            </div>
+          )}
+          {selected.status === 'blocked' && (
+            <form method="post" class="mt-4">
+              <input type="hidden" name="week" value={monday} />
+              <input type="hidden" name="id" value={selected.id} />
+              <input type="hidden" name="action" value="cancel" />
+              <button class="w-full rounded-xl bg-slate-900 py-2.5 text-xs font-semibold text-white">Unblock this slot</button>
+            </form>
+          )}
+        </section>
+      )}
+
+      {composeDate && composeTime && (
+        <section class="rounded-2xl border border-slate-200 bg-white p-5">
+          <div class="mb-3 flex items-start justify-between">
+            <div>
+              <h2 class="text-lg font-bold text-slate-900">Add to diary</h2>
+              <p class="text-sm text-slate-500">{formatLongDate(composeDate)} at {composeTime}</p>
+            </div>
+            <a href={`/admin?week=${monday}`} class="text-xs text-slate-500">Close</a>
+          </div>
+
+          <form method="post" class="space-y-2">
+            <input type="hidden" name="week" value={monday} />
+            <input type="hidden" name="action" value="create" />
+            <input type="hidden" name="date" value={composeDate} />
+            <input type="hidden" name="time" value={composeTime} />
+            <label class="block text-[11px] font-bold tracking-wide text-slate-500 uppercase">
+              Service
+              <select name="service" class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+                {SERVICES.map((service) => (
+                  <option value={service.name}>{service.name} · £{service.price}</option>
+                ))}
+              </select>
+            </label>
+            <label class="block text-[11px] font-bold tracking-wide text-slate-500 uppercase">
+              Source
+              <select name="source" class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+                <option value="phone">Phone</option>
+                <option value="walk-in">Walk-in</option>
+                <option value="admin">Admin</option>
+              </select>
+            </label>
+            <input name="vrm" required placeholder="Registration" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm uppercase" />
+            <input name="customer_name" required placeholder="Customer name" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+            <input name="customer_phone" required placeholder="Phone" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+            <input name="customer_email" type="email" placeholder="Email (optional)" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+            <input name="vehicle_make_model" placeholder="Make / model (optional)" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+            <select name="payment_method" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+              <option value="Pay at Garage">Pay at Garage</option>
+              <option value="0% Payment Assist">0% Payment Assist</option>
+            </select>
+            <textarea name="notes" rows="2" placeholder="Notes" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"></textarea>
+            <button class="w-full rounded-xl bg-brand-600 py-2.5 text-xs font-semibold text-white">Save booking</button>
+          </form>
+
+          <form method="post" class="mt-3 border-t border-slate-100 pt-3">
+            <input type="hidden" name="week" value={monday} />
+            <input type="hidden" name="action" value="block" />
+            <input type="hidden" name="date" value={composeDate} />
+            <input type="hidden" name="time" value={composeTime} />
+            <input name="notes" placeholder="Reason for blocking (optional)" class="mb-2 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+            <button class="w-full rounded-xl border border-slate-200 bg-slate-100 py-2.5 text-xs font-semibold text-slate-700">Block this slot</button>
+          </form>
+        </section>
+      )}
+
+      {!selected && !composeDate && (
+        <section class="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-600">
+          <h2 class="mb-2 font-bold text-slate-900">How to use</h2>
+          <ul class="list-disc space-y-1 pl-4">
+            <li>Click an open slot to add a phone booking or block it.</li>
+            <li>Click a booking to see customer details, complete it, or cancel it.</li>
+            <li>Cancelled slots go back on the public booking calendar immediately.</li>
+          </ul>
+        </section>
+      )}
+    </aside>
+  </div>
+</AdminLayout>

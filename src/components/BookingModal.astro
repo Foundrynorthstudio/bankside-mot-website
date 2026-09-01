@@ -1,0 +1,139 @@
+---
+import { SERVICES } from '../lib/booking/config';
+---
+
+<div
+  x-show="bookingModalOpen"
+  x-cloak
+  x-transition
+  class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+>
+  <div @click.outside="bookingModalOpen = false" class="bg-white border border-slate-200 rounded-2xl w-full max-w-xl p-6 shadow-2xl relative overflow-hidden text-slate-800 max-h-[90vh] overflow-y-auto">
+    <button type="button" @click="bookingModalOpen = false" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-lg" aria-label="Close booking">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+
+    <div class="border-b border-slate-100 pb-3 mb-4">
+      <span class="text-brand-600 text-[10px] font-semibold uppercase tracking-wider">Bankside MOT & Repair</span>
+      <h3 class="text-2xl font-bold text-slate-900">Reserve Garage Slot</h3>
+      <p class="text-xs text-slate-500">Step <span x-text="bookingStep"></span> of 3</p>
+    </div>
+
+    <div x-show="bookingError" x-cloak class="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800" x-text="bookingError"></div>
+
+    <div x-show="bookingStep === 1" class="space-y-4">
+      <div>
+        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Vehicle Registration Mark</label>
+        <input type="text" x-model="vrmInput" placeholder="FK68 MOT" class="w-full uk-plate py-2.5 px-3 text-center font-bold text-2xl rounded-lg outline-none">
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Select Required Service</label>
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          {SERVICES.map((service) => (
+            <button
+              type="button"
+              @click={`selectedService = '${service.name}'; servicePrice = ${service.price}`}
+              :class={`selectedService === '${service.name}' ? 'border-brand-600 bg-brand-50/60 text-slate-900 font-bold' : 'border-slate-200 bg-slate-50 text-slate-700'`}
+              class="p-3 rounded-xl border text-left flex flex-col justify-between transition"
+            >
+              <span class="font-semibold">{service.name}</span>
+              <span class="text-brand-600 font-extrabold mt-1">£{service.price}.00</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <button type="button" @click="goToSlotStep()" class="w-full py-3 rounded-xl bg-slate-900 text-white font-semibold text-xs tracking-wide transition">
+        Next: Choose Date & Time <i class="fa-solid fa-arrow-right ml-1"></i>
+      </button>
+    </div>
+
+    <div x-show="bookingStep === 2" class="space-y-4">
+      <div>
+        <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Preferred Booking Date</label>
+        <input type="date" x-model="bookingDate" :min="minDate" :max="maxDate" @change="loadSlots()" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 outline-none">
+        <p class="mt-1 text-[11px] text-slate-500">Monday to Friday, 8:30–16:00. Taken times are shown as booked.</p>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Available Time Slot</label>
+        <p x-show="slotsLoading" class="text-xs text-slate-500"><i class="fa-solid fa-circle-notch animate-spin mr-1"></i> Checking the diary…</p>
+        <div class="grid grid-cols-3 gap-2 text-xs">
+          <template x-for="slot in availableSlots" :key="slot.time">
+            <button
+              type="button"
+              @click="slot.available && (selectedTime = slot.time)"
+              :disabled="!slot.available"
+              :class="!slot.available ? 'bg-slate-100 text-slate-400 cursor-not-allowed line-through' : selectedTime === slot.time ? 'bg-brand-600 text-white font-semibold' : 'bg-slate-50 text-slate-700 hover:bg-slate-100'"
+              class="py-2 px-2 rounded-lg border border-slate-200 text-center transition"
+            >
+              <span x-text="slot.time"></span>
+              <span x-show="slot.reason === 'booked'" class="block text-[10px] font-semibold no-underline">Booked</span>
+              <span x-show="slot.reason === 'closed'" class="block text-[10px] font-semibold no-underline">Closed</span>
+            </button>
+          </template>
+        </div>
+      </div>
+
+      <div class="flex gap-2 pt-2">
+        <button type="button" @click="bookingStep = 1" class="w-1/3 py-3 rounded-xl bg-slate-100 text-slate-700 font-semibold text-xs">Back</button>
+        <button type="button" @click="goToDetailsStep()" class="w-2/3 py-3 rounded-xl bg-slate-900 text-white font-semibold text-xs tracking-wide">
+          Next: Customer Info <i class="fa-solid fa-arrow-right ml-1"></i>
+        </button>
+      </div>
+    </div>
+
+    <div x-show="bookingStep === 3" class="space-y-4">
+      <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs space-y-1">
+        <div class="flex justify-between"><span class="text-slate-500">Vehicle:</span><span class="font-bold text-slate-900" x-text="vrmInput || '—'"></span></div>
+        <div class="flex justify-between"><span class="text-slate-500">Service:</span><span class="font-bold text-slate-900" x-text="selectedService"></span></div>
+        <div class="flex justify-between"><span class="text-slate-500">Date/Time:</span><span class="font-bold text-slate-900" x-text="bookingDate + ' @ ' + selectedTime"></span></div>
+        <div class="flex justify-between"><span class="text-slate-500">Total:</span><span class="font-extrabold text-brand-600" x-text="'£' + servicePrice"></span></div>
+      </div>
+
+      <div class="space-y-2">
+        <input type="text" x-model="customerName" placeholder="Full Name" required class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 outline-none">
+        <input type="tel" x-model="customerPhone" placeholder="Mobile Phone Number" required class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 outline-none">
+        <input type="email" x-model="customerEmail" placeholder="Email Address" required class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 outline-none">
+        <textarea x-model="bookingNotes" rows="2" placeholder="Notes for the workshop (optional)" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 outline-none"></textarea>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Payment Option</label>
+        <select x-model="paymentMethod" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 outline-none">
+          <option value="Pay at Garage">Pay at Garage on Day of Service</option>
+          <option value="0% Payment Assist">Apply for 0% Payment Assist (4 Monthly Installments)</option>
+        </select>
+      </div>
+
+      <div class="flex gap-2 pt-2">
+        <button type="button" @click="bookingStep = 2" class="w-1/3 py-3 rounded-xl bg-slate-100 text-slate-700 font-semibold text-xs">Back</button>
+        <button type="button" @click="confirmBooking()" :disabled="isSubmittingBooking" class="w-2/3 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-xs tracking-wide transition disabled:opacity-60">
+          <span x-show="!isSubmittingBooking">Confirm Booking</span>
+          <span x-show="isSubmittingBooking" x-cloak>Saving…</span>
+        </button>
+      </div>
+    </div>
+
+    <div x-show="bookingStep === 4" class="text-center py-6 space-y-4">
+      <div class="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 border border-emerald-200 flex items-center justify-center text-2xl mx-auto">
+        <i class="fa-solid fa-check"></i>
+      </div>
+      <h3 class="text-2xl font-bold text-slate-900">Booking Confirmed!</h3>
+      <p class="text-sm text-slate-600 max-w-md mx-auto">
+        Thank you <span class="text-slate-900 font-bold" x-text="customerName"></span>. We have reserved your <span class="text-slate-900 font-bold" x-text="selectedService"></span> slot for <span class="text-slate-900 font-bold" x-text="bookingDate"></span> at <span class="text-slate-900 font-bold" x-text="selectedTime"></span>.
+      </p>
+      <div class="bg-slate-50 p-4 rounded-xl text-xs text-slate-700 text-left border border-slate-200 space-y-1">
+        <div><strong>Booking Ref:</strong> <span class="text-brand-600 font-bold" x-text="bookingRef"></span></div>
+        <div><strong>Garage Address:</strong> Castlelaurie Industrial Estate, Falkirk, FK2 7XJ</div>
+        <div><strong>Payment Method:</strong> <span x-text="paymentMethod"></span></div>
+        <div x-show="emailSent" x-cloak>A confirmation has been emailed to you and the workshop.</div>
+        <div x-show="!emailSent" x-cloak class="text-amber-800">The slot is reserved. The workshop has it on the diary — email sending is not configured on this machine yet.</div>
+      </div>
+      <button type="button" @click="bookingModalOpen = false; bookingStep = 1" class="px-5 py-2.5 bg-slate-900 text-white font-semibold text-xs rounded-xl">
+        Close Window
+      </button>
+    </div>
+  </div>
+</div>

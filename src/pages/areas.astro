@@ -1,0 +1,53 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout
+  title="MOT Falkirk, Grangemouth, Larbert & Polmont | Bankside MOT & Repair"
+  description="MOT tests and repairs for Falkirk, Grangemouth, Larbert, Polmont, Stenhousemuir and Denny. Workshop at Castlelaurie Industrial Estate, FK2 7XJ."
+  breadcrumbs={[
+    { name: 'Home', path: '/' },
+    { name: 'Areas We Serve', path: '/areas' },
+  ]}
+>
+  <div class="py-12 bg-white">
+    <div class="container mx-auto px-4">
+      <div class="text-center max-w-3xl mx-auto mb-10">
+        <span class="text-brand-600 text-xs font-semibold uppercase tracking-wider bg-brand-50 px-3 py-1 rounded-full border border-brand-100">Stirlingshire Local Coverage</span>
+        <h1 class="text-3xl font-extrabold text-slate-900 mt-2">Serving Falkirk & Surrounding Towns</h1>
+        <p class="text-slate-500 text-xs sm:text-sm mt-1">Conveniently located at Castlelaurie Industrial Estate (FK2 7XJ).</p>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 max-w-4xl mx-auto mb-8">
+        <template x-for="town in townList" :key="town.name">
+          <button
+            type="button"
+            @click="selectedTown = town"
+            :class="selectedTown.name === town.name ? 'bg-slate-900 text-white font-semibold border-slate-900 shadow-sm' : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border-slate-200'"
+            class="py-2.5 px-3 rounded-xl border text-xs text-center transition"
+          >
+            <i class="fa-solid fa-location-dot mr-1.5 text-brand-600"></i>
+            <span x-text="town.name"></span>
+          </button>
+        </template>
+      </div>
+
+      <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
+        <div class="space-y-2">
+          <h3 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+            <span>MOT & Repairs for</span>
+            <span class="text-brand-600" x-text="selectedTown.name"></span>
+            <span class="text-xs bg-white border border-slate-200 text-slate-500 font-normal px-2.5 py-0.5 rounded-full" x-text="selectedTown.postcode"></span>
+          </h3>
+          <p class="text-xs text-slate-600" x-text="selectedTown.description"></p>
+          <div class="text-xs text-slate-700 font-semibold flex items-center gap-2 pt-1">
+            <i class="fa-solid fa-car-side text-brand-600"></i> Drive Time: <span x-text="selectedTown.driveTime"></span> to Castlelaurie Industrial Estate
+          </div>
+        </div>
+        <button type="button" @click="openBookingModal()" class="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-xs whitespace-nowrap transition">
+          Book MOT From <span x-text="selectedTown.name"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+</Layout>

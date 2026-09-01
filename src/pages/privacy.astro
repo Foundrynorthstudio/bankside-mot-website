@@ -1,0 +1,39 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { business } from '../data/site';
+---
+
+<Layout
+  title="Privacy Policy | Bankside MOT & Repair Falkirk"
+  description="How Bankside MOT & Repair collects and uses booking details such as your name, phone number, email and vehicle registration."
+  breadcrumbs={[
+    { name: 'Home', path: '/' },
+    { name: 'Privacy Policy', path: '/privacy' },
+  ]}
+>
+  <div class="bg-white py-12">
+    <div class="container mx-auto max-w-3xl px-4 space-y-6 text-sm leading-relaxed text-slate-600">
+      <h1 class="text-3xl font-extrabold text-slate-900">Privacy Policy</h1>
+      <p>
+        {business.legalName} (“we”) runs the workshop at {business.streetAddress}, {business.addressLocality}, {business.postalCode}. This page explains what we collect when you book online or request a callback.
+      </p>
+      <h2 class="text-xl font-bold text-slate-900">What we collect</h2>
+      <p>
+        Online bookings store your name, phone number, email, vehicle registration, chosen service, date and time, payment preference, and any notes you add. Callback forms store your name, phone number, and message.
+      </p>
+      <h2 class="text-xl font-bold text-slate-900">Why we collect it</h2>
+      <p>
+        We use this information to reserve a workshop slot, contact you about the booking, and keep a garage diary. If email sending is configured, we also send a confirmation to you and a copy to the workshop inbox.
+      </p>
+      <h2 class="text-xl font-bold text-slate-900">How long we keep it</h2>
+      <p>
+        Booking records are kept for as long as needed to run the diary and meet accounting or MOT-related record keeping. You can ask us to update or remove details that we no longer need for those purposes.
+      </p>
+      <h2 class="text-xl font-bold text-slate-900">Contact</h2>
+      <p>
+        Questions: <a class="font-semibold text-brand-700" href={`tel:${business.telephone}`}>{business.telephoneDisplay}</a>
+        or visit the workshop during {business.openingHoursDisplay}.
+      </p>
+    </div>
+  </div>
+</Layout>

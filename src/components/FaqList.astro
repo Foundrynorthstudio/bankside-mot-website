@@ -1,0 +1,25 @@
+---
+interface Faq {
+  question: string;
+  answer: string;
+}
+
+interface Props {
+  items: Faq[];
+}
+
+const { items } = Astro.props;
+---
+
+<section class="mt-12">
+  <h2 class="text-2xl font-extrabold text-slate-900">MOT & servicing questions</h2>
+  <p class="mt-1 text-sm text-slate-500">Straight answers before you book.</p>
+  <dl class="mt-6 divide-y divide-slate-200 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+    {items.map((item) => (
+      <div class="px-5 py-4">
+        <dt class="text-sm font-bold text-slate-900">{item.question}</dt>
+        <dd class="mt-1.5 text-sm leading-relaxed text-slate-600">{item.answer}</dd>
+      </div>
+    ))}
+  </dl>
+</section>

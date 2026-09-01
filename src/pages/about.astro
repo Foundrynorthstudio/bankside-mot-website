@@ -1,0 +1,153 @@
+---
+import Layout from '../layouts/Layout.astro';
+import ImageSlot from '../components/ImageSlot.astro';
+import { photos } from '../data/photos';
+---
+
+<Layout
+  title="About the Falkirk MOT Team | Bankside MOT & Repair"
+  description="Meet the Bankside MOT & Repair mechanics in Falkirk. DVSA testers, upfront quotes, and OEM diagnostics at Castlelaurie Industrial Estate."
+  breadcrumbs={[
+    { name: 'Home', path: '/' },
+    { name: 'About Us & Team', path: '/about' },
+  ]}
+>
+  <div class="bg-white py-12">
+    <div class="container mx-auto px-4">
+      <div class="mb-12 grid items-center gap-10 lg:grid-cols-12">
+        <div class="space-y-3 lg:col-span-5">
+          <span class="rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-xs font-semibold tracking-wider text-brand-600 uppercase">Castlelaurie Industrial Estate, Falkirk</span>
+          <h1 class="text-3xl font-extrabold text-slate-900 sm:text-4xl">About Bankside MOT & Repair</h1>
+          <p class="text-sm leading-relaxed text-slate-600 sm:text-base">
+            Bankside MOT & Repair was built to bring fast turnaround times and main dealer diagnostic accuracy to Falkirk drivers at clear, honest rates.
+          </p>
+        </div>
+        <div class="grid grid-cols-2 gap-3 lg:col-span-7">
+          <ImageSlot
+            src={photos.aboutWorkshop.src}
+            label={photos.aboutWorkshop.label}
+            brief={photos.aboutWorkshop.brief}
+            class="aspect-[4/3] rounded-2xl"
+          />
+          <ImageSlot
+            src={photos.waitingLounge.src}
+            label={photos.waitingLounge.label}
+            brief={photos.waitingLounge.brief}
+            class="aspect-[4/3] rounded-2xl"
+          />
+        </div>
+      </div>
+
+      <div class="mb-16 grid gap-6 md:grid-cols-3">
+        <div class="space-y-3 rounded-2xl border border-slate-100 bg-slate-50 p-6 text-center">
+          <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-xl border border-brand-100 bg-brand-50 text-xl font-bold text-brand-600">
+            <i class="fa-solid fa-award"></i>
+          </div>
+          <h3 class="text-lg font-bold text-slate-900">DVSA Certified Bay</h3>
+          <p class="text-sm leading-relaxed text-slate-600">Fully approved testing bays with high-capacity hydraulic lifts to handle domestic cars, commercial vans, and fleet vehicles.</p>
+        </div>
+
+        <div class="space-y-3 rounded-2xl border border-slate-100 bg-slate-50 p-6 text-center">
+          <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-xl border border-brand-100 bg-brand-50 text-xl font-bold text-brand-600">
+            <i class="fa-solid fa-file-invoice-dollar"></i>
+          </div>
+          <h3 class="text-lg font-bold text-slate-900">100% Upfront Quotes</h3>
+          <p class="text-sm leading-relaxed text-slate-600">No surprise bills. All repair work is quoted and approved by you before a single wrench is turned on your car.</p>
+        </div>
+
+        <div class="space-y-3 rounded-2xl border border-slate-100 bg-slate-50 p-6 text-center">
+          <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-xl border border-brand-100 bg-brand-50 text-xl font-bold text-brand-600">
+            <i class="fa-solid fa-microchip"></i>
+          </div>
+          <h3 class="text-lg font-bold text-slate-900">OEM Diagnostics</h3>
+          <p class="text-sm leading-relaxed text-slate-600">Comprehensive diagnostic scanners for BMW, Audi, VW, Mercedes, Ford, Vauxhall, Toyota, Nissan, and all major vehicle brands.</p>
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <div class="mx-auto mb-10 max-w-2xl text-center">
+          <h2 class="text-2xl font-bold text-slate-900">Meet Our Falkirk Mechanics</h2>
+          <p class="mt-1 text-sm text-slate-500">Our certified workshop engineers bring over 35 years of combined trade experience. Use the same wall or bay for all four portraits.</p>
+        </div>
+
+        <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div class="hover-lift flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            <ImageSlot
+              src={photos.teamDave.src}
+              label={photos.teamDave.label}
+              brief={photos.teamDave.brief}
+              class="aspect-[4/5] w-full"
+            />
+            <div class="space-y-2 p-5 text-center">
+              <h3 class="font-bold text-slate-900">Dave MacIntyre</h3>
+              <div class="text-xs font-semibold text-brand-600">Founder & Master Tech</div>
+              <p class="text-sm leading-relaxed text-slate-600">
+                30+ years of mechanical engineering experience. IMI Level 4 EV/Hybrid certified specializing in diagnostics and engine overhauls.
+              </p>
+            </div>
+            <div class="border-t border-slate-100 bg-slate-50 p-3 text-center text-[11px] font-medium text-slate-600">
+              <i class="fa-solid fa-certificate mr-1 text-brand-600"></i> Class 4 & 7 Nominated Tester
+            </div>
+          </div>
+
+          <div class="hover-lift flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            <ImageSlot
+              src={photos.teamCraig.src}
+              label={photos.teamCraig.label}
+              brief={photos.teamCraig.brief}
+              class="aspect-[4/5] w-full"
+            />
+            <div class="space-y-2 p-5 text-center">
+              <h3 class="font-bold text-slate-900">Craig Henderson</h3>
+              <div class="text-xs font-semibold text-brand-600">Lead DVSA Tester</div>
+              <p class="text-sm leading-relaxed text-slate-600">
+                15 years dedicated to official MOT inspection standards. Craig manages daily testing schedules for passenger cars and light commercial goods.
+              </p>
+            </div>
+            <div class="border-t border-slate-100 bg-slate-50 p-3 text-center text-[11px] font-medium text-slate-600">
+              <i class="fa-solid fa-certificate mr-1 text-brand-600"></i> DVSA Authorized Inspector
+            </div>
+          </div>
+
+          <div class="hover-lift flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            <ImageSlot
+              src={photos.teamCallum.src}
+              label={photos.teamCallum.label}
+              brief={photos.teamCallum.brief}
+              class="aspect-[4/5] w-full"
+            />
+            <div class="space-y-2 p-5 text-center">
+              <h3 class="font-bold text-slate-900">Callum Smith</h3>
+              <div class="text-xs font-semibold text-brand-600">Brakes & Suspension Lead</div>
+              <p class="text-sm leading-relaxed text-slate-600">
+                Expert in suspension setups, brake system overhaul, exhaust replacement, and commercial light goods maintenance.
+              </p>
+            </div>
+            <div class="border-t border-slate-100 bg-slate-50 p-3 text-center text-[11px] font-medium text-slate-600">
+              <i class="fa-solid fa-screwdriver-wrench mr-1 text-brand-600"></i> Vehicle Repair Specialist
+            </div>
+          </div>
+
+          <div class="hover-lift flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            <ImageSlot
+              src={photos.teamSarah.src}
+              label={photos.teamSarah.label}
+              brief={photos.teamSarah.brief}
+              class="aspect-[4/5] w-full"
+            />
+            <div class="space-y-2 p-5 text-center">
+              <h3 class="font-bold text-slate-900">Sarah Jenkins</h3>
+              <div class="text-xs font-semibold text-brand-600">Service Manager</div>
+              <p class="text-sm leading-relaxed text-slate-600">
+                Coordinates customer drop-offs, keeps drivers updated on repair progress, and handles 0% Payment Assist finance applications.
+              </p>
+            </div>
+            <div class="border-t border-slate-100 bg-slate-50 p-3 text-center text-[11px] font-medium text-slate-600">
+              <i class="fa-solid fa-headset mr-1 text-brand-600"></i> Reception & Customer Care
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>

@@ -1,0 +1,74 @@
+---
+import '../styles/global.css';
+import { business } from '../data/site';
+import Logo from '../components/Logo.astro';
+
+interface Props {
+  title: string;
+  notice?: string;
+  error?: string;
+}
+
+const { title, notice, error } = Astro.props;
+const path = Astro.url.pathname.replace(/\/$/, '') || '/';
+const onDiary = path === '/admin';
+const onCustomers = path.startsWith('/admin/customers');
+---
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>{title}</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  </head>
+  <body class="min-h-screen bg-slate-100 font-sans text-slate-800 antialiased">
+    <header class="border-b border-slate-200 bg-white">
+      <div class="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
+        <a href="/admin" class="flex items-center gap-3">
+          <Logo variant="mark" class="h-11 w-11 rounded-lg object-cover ring-1 ring-slate-200" />
+          <div>
+            <div class="text-sm font-bold text-slate-900">{business.name}</div>
+            <div class="text-[11px] text-slate-500">Diary & customer CRM</div>
+          </div>
+        </a>
+        <nav class="flex items-center gap-1 text-xs font-semibold">
+          <a
+            href="/admin"
+            class:list={['rounded-lg px-3 py-2', onDiary ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50']}
+          >
+            Diary
+          </a>
+          <a
+            href="/admin/customers"
+            class:list={['rounded-lg px-3 py-2', onCustomers ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50']}
+          >
+            Customers
+          </a>
+        </nav>
+        <div class="flex items-center gap-2">
+          <a href="/" class="hidden rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 sm:inline">View website</a>
+          <form method="post" action="/admin/logout">
+            <button type="submit" class="rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white">Log out</button>
+          </form>
+        </div>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-7xl px-4 py-6">
+      {notice && (
+        <p class="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{notice}</p>
+      )}
+      {error && (
+        <p class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</p>
+      )}
+      <slot />
+    </main>
+  </body>
+</html>

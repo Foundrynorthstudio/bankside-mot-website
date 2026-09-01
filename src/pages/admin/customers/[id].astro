@@ -1,0 +1,175 @@
+---
+export const prerender = false;
+
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import {
+  addCustomerNote,
+  addCustomerVehicle,
+  formatNoteTime,
+  getCustomer,
+  listCustomerBookings,
+  listCustomerNotes,
+  listCustomerVehicles,
+  updateCustomer,
+} from '../../../lib/booking/customers';
+import { formatLongDate } from '../../../lib/booking/dates';
+import { normalisePhone, normaliseVrm } from '../../../lib/booking/validate';
+
+const { id } = Astro.params;
+const url = Astro.url;
+let notice = url.searchParams.get('notice') || '';
+let error = url.searchParams.get('error') || '';
+
+if (!id) {
+  return Astro.redirect('/admin/customers');
+}
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const action = String(form.get('action') ?? '');
+  const returnTo = (extra: Record<string, string>) => {
+    const next = new URL(`/admin/customers/${id}`, url.origin);
+    for (const [key, value] of Object.entries(extra)) {
+      if (value) next.searchParams.set(key, value);
+    }
+    return Astro.redirect(`${next.pathname}${next.search}`);
+  };
+
+  if (action === 'update') {
+    const name = String(form.get('name') ?? '').trim();
+    const phone = normalisePhone(String(form.get('phone') ?? ''));
+    const email = String(form.get('email') ?? '').trim().toLowerCase();
+    const profileNotes = String(form.get('profile_notes') ?? '').trim();
+    if (name.length < 2 || phone.length < 10) {
+      return returnTo({ error: 'Name and a valid phone number are required.' });
+    }
+    updateCustomer(id, { name, phone, email, profile_notes: profileNotes });
+    return returnTo({ notice: 'Customer details updated.' });
+  }
+
+  if (action === 'note') {
+    const note = addCustomerNote(id, String(form.get('body') ?? ''));
+    if (!note) return returnTo({ error: 'Write a note before saving.' });
+    return returnTo({ notice: 'Note added.' });
+  }
+
+  if (action === 'vehicle') {
+    const vrm = normaliseVrm(String(form.get('vrm') ?? ''));
+    if (vrm.length < 2) return returnTo({ error: 'Enter a valid registration.' });
+    addCustomerVehicle(id, vrm, String(form.get('make_model') ?? '').trim());
+    return returnTo({ notice: `${vrm} added to this customer.` });
+  }
+}
+
+const customer = getCustomer(id);
+if (!customer) {
+  return Astro.redirect('/admin/customers?error=' + encodeURIComponent('Customer not found.'));
+}
+
+const vehicles = listCustomerVehicles(customer.id);
+const notes = listCustomerNotes(customer.id);
+const visits = listCustomerBookings(customer.id);
+---
+
+<AdminLayout title={`${customer.name} | Customers`} notice={notice} error={error}>
+  <p class="mb-4 text-sm">
+    <a href="/admin/customers" class="font-semibold text-brand-700 hover:text-brand-800">← All customers</a>
+  </p>
+
+  <div class="grid gap-6 lg:grid-cols-12">
+    <div class="space-y-6 lg:col-span-7">
+      <section class="rounded-2xl border border-slate-200 bg-white p-5">
+        <h1 class="text-2xl font-extrabold text-slate-900">{customer.name}</h1>
+        <p class="mt-1 text-sm text-slate-500">{customer.id} · last updated {formatNoteTime(customer.updated_at)}</p>
+
+        <form method="post" class="mt-5 grid gap-3 sm:grid-cols-2">
+          <input type="hidden" name="action" value="update" />
+          <label class="block text-[11px] font-bold tracking-wide text-slate-500 uppercase sm:col-span-2">
+            Name
+            <input name="name" value={customer.name} required class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-normal normal-case tracking-normal text-slate-900" />
+          </label>
+          <label class="block text-[11px] font-bold tracking-wide text-slate-500 uppercase">
+            Phone
+            <input name="phone" value={customer.phone} required class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-normal normal-case tracking-normal text-slate-900" />
+          </label>
+          <label class="block text-[11px] font-bold tracking-wide text-slate-500 uppercase">
+            Email
+            <input name="email" type="email" value={customer.email} class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-normal normal-case tracking-normal text-slate-900" />
+          </label>
+          <label class="block text-[11px] font-bold tracking-wide text-slate-500 uppercase sm:col-span-2">
+            Standing notes
+            <textarea name="profile_notes" rows="3" placeholder="e.g. prefers morning slots, courtesy car needed" class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-normal normal-case tracking-normal text-slate-900">{customer.profile_notes}</textarea>
+          </label>
+          <div class="sm:col-span-2">
+            <button class="rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white">Save details</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="rounded-2xl border border-slate-200 bg-white p-5">
+        <div class="mb-4 flex items-center justify-between">
+          <h2 class="text-lg font-bold text-slate-900">Workshop notes</h2>
+          <span class="text-xs text-slate-500">{notes.length} {notes.length === 1 ? 'note' : 'notes'}</span>
+        </div>
+        <form method="post" class="mb-5">
+          <input type="hidden" name="action" value="note" />
+          <textarea name="body" rows="3" required placeholder="Add a note — call back, advisory, customer preference…" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"></textarea>
+          <button class="mt-2 rounded-xl bg-brand-600 px-4 py-2.5 text-xs font-semibold text-white">Add note</button>
+        </form>
+        {notes.length === 0 ? (
+          <p class="text-sm text-slate-500">No dated notes yet. Use standing notes above for things that always apply.</p>
+        ) : (
+          <ol class="space-y-3">
+            {notes.map((note) => (
+              <li class="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                <div class="text-[11px] font-semibold text-slate-500">{formatNoteTime(note.created_at)}</div>
+                <p class="mt-1 whitespace-pre-wrap text-sm text-slate-800">{note.body}</p>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
+    </div>
+
+    <div class="space-y-6 lg:col-span-5">
+      <section class="rounded-2xl border border-slate-200 bg-white p-5">
+        <h2 class="text-lg font-bold text-slate-900">Vehicles</h2>
+        <ul class="mt-3 space-y-2 text-sm">
+          {vehicles.length === 0 && <li class="text-slate-500">No registrations stored yet.</li>}
+          {vehicles.map((vehicle) => (
+            <li class="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+              <span class="font-bold tracking-wide text-slate-900">{vehicle.vrm}</span>
+              <span class="text-xs text-slate-500">{vehicle.make_model || '—'}</span>
+            </li>
+          ))}
+        </ul>
+        <form method="post" class="mt-4 space-y-2 border-t border-slate-100 pt-4">
+          <input type="hidden" name="action" value="vehicle" />
+          <input name="vrm" required placeholder="Add registration" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm uppercase" />
+          <input name="make_model" placeholder="Make / model (optional)" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+          <button class="w-full rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-semibold text-slate-800">Add vehicle</button>
+        </form>
+      </section>
+
+      <section class="rounded-2xl border border-slate-200 bg-white p-5">
+        <h2 class="text-lg font-bold text-slate-900">Visit history</h2>
+        {visits.length === 0 ? (
+          <p class="mt-3 text-sm text-slate-500">No diary bookings linked yet.</p>
+        ) : (
+          <ul class="mt-3 divide-y divide-slate-100 text-sm">
+            {visits.map((visit) => (
+              <li class="flex items-start justify-between gap-3 py-3">
+                <div>
+                  <div class="font-semibold text-slate-900">{visit.service}</div>
+                  <div class="text-xs text-slate-500">{formatLongDate(visit.date)} · {visit.time} · {visit.vrm}</div>
+                  {visit.notes && <div class="mt-1 text-xs text-slate-600">{visit.notes}</div>}
+                </div>
+                <a href={`/admin?id=${visit.id}`} class="shrink-0 text-[11px] font-semibold text-brand-700 capitalize">{visit.status}</a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
+  </div>
+</AdminLayout>
