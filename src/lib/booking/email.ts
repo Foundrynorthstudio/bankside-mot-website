@@ -1,7 +1,7 @@
 import { createTransport } from 'nodemailer';
 import { business } from '../../data/site';
-import { env, garageEmail } from './config';
-import { formatLongDate } from './dates';
+import { diaryById, env, garageEmail, parseDiaryId, resourceLabel } from './config';
+import { formatLongDate, formatSlotRange } from './dates';
 import type { Booking } from './types';
 
 function transporter() {
@@ -25,10 +25,13 @@ function fromAddress() {
 }
 
 function bookingSummary(booking: Booking) {
+  const diary = diaryById(parseDiaryId(booking.diary));
+  const when = `${formatLongDate(booking.date)} at ${formatSlotRange(booking.time, diary.durationMinutes)}`;
   return [
     `Reference: ${booking.id}`,
     `Service: ${booking.service} (£${booking.price})`,
-    `Date: ${formatLongDate(booking.date)} at ${booking.time}`,
+    `Diary: ${diary.name} · ${resourceLabel(diary.id, booking.resource)}`,
+    `Date: ${when}`,
     `VRM: ${booking.vrm}`,
     booking.vehicle_make_model ? `Vehicle: ${booking.vehicle_make_model}` : '',
     booking.vehicle_engine ? `Engine: ${booking.vehicle_engine}` : '',

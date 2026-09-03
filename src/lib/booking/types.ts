@@ -20,6 +20,9 @@ export type Booking = {
   payment_method: string;
   notes: string;
   customer_id: string;
+  vehicle_id: string;
+  diary: string;
+  resource: string;
 };
 
 export type BookingInput = {
@@ -37,4 +40,6 @@ export type BookingInput = {
   notes?: string;
   source?: BookingSource;
   status?: BookingStatus;
+  diary?: string;
+  resource?: string;
 };

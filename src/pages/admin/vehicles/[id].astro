@@ -1,0 +1,233 @@
+---
+export const prerender = false;
+
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { createCustomer, findCustomerByPhone, formatNoteTime, getCustomer } from '../../../lib/booking/customers';
+import { formatLongDate } from '../../../lib/booking/dates';
+import { jobSummary, listVehicleJobs } from '../../../lib/booking/jobs';
+import { formatPounds } from '../../../lib/booking/money';
+import { normalisePhone } from '../../../lib/booking/validate';
+import {
+  getVehicle,
+  linkCustomerToVehicle,
+  listVehicleBookings,
+  listVehicleOwners,
+  unlinkCustomerFromVehicle,
+  updateVehicle,
+} from '../../../lib/booking/vehicles';
+
+const { id } = Astro.params;
+const url = Astro.url;
+let notice = url.searchParams.get('notice') || '';
+let error = url.searchParams.get('error') || '';
+
+if (!id) {
+  return Astro.redirect('/admin/vehicles');
+}
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const action = String(form.get('action') ?? '');
+  const returnTo = (extra: Record<string, string>) => {
+    const next = new URL(`/admin/vehicles/${id}`, url.origin);
+    for (const [key, value] of Object.entries(extra)) {
+      if (value) next.searchParams.set(key, value);
+    }
+    return Astro.redirect(`${next.pathname}${next.search}`);
+  };
+
+  if (action === 'update') {
+    updateVehicle(id, {
+      make_model: String(form.get('make_model') ?? '').trim(),
+      engine: String(form.get('engine') ?? '').trim(),
+      notes: String(form.get('notes') ?? '').trim(),
+    });
+    return returnTo({ notice: 'Vehicle details updated.' });
+  }
+
+  if (action === 'link_customer') {
+    const customerId = String(form.get('customer_id') ?? '').trim();
+    const phone = normalisePhone(String(form.get('phone') ?? ''));
+    const name = String(form.get('name') ?? '').trim();
+    let customer = customerId ? getCustomer(customerId) : findCustomerByPhone(phone);
+    if (!customer && name.length >= 2 && phone.length >= 10) {
+      customer = createCustomer({ name, phone });
+    }
+    if (!customer) {
+      return returnTo({ error: 'Find a customer by ID or phone, or enter a name and phone to create one.' });
+    }
+    linkCustomerToVehicle(customer.id, id);
+    return returnTo({ notice: `${customer.name} assigned to this vehicle.` });
+  }
+
+  if (action === 'unlink_customer') {
+    const customerId = String(form.get('customer_id') ?? '');
+    if (!customerId) return returnTo({ error: 'Choose a customer to unlink.' });
+    unlinkCustomerFromVehicle(customerId, id);
+    return returnTo({ notice: 'Customer unlinked from this vehicle.' });
+  }
+}
+
+const vehicle = getVehicle(id);
+if (!vehicle) {
+  return Astro.redirect('/admin/vehicles?error=' + encodeURIComponent('Vehicle not found.'));
+}
+
+const owners = listVehicleOwners(vehicle.id);
+const visits = listVehicleBookings(vehicle.id);
+const jobs = listVehicleJobs(vehicle.id);
+
+function statusClass(status: string) {
+  if (status === 'Paid') return 'bg-emerald-50 text-emerald-800';
+  if (status === 'Part paid') return 'bg-amber-50 text-amber-800';
+  if (status === 'Unpaid') return 'bg-rose-50 text-rose-800';
+  return 'bg-slate-100 text-slate-600';
+}
+---
+
+<AdminLayout title={`${vehicle.vrm} | Vehicles`} notice={notice} error={error}>
+  <p class="mb-4 text-sm">
+    <a href="/admin/vehicles" class="font-semibold text-brand-700 hover:text-brand-800">← All vehicles</a>
+  </p>
+
+  <div class="grid gap-6 lg:grid-cols-12">
+    <div class="space-y-6 lg:col-span-7">
+      <section class="rounded-2xl border border-slate-200 bg-white p-5">
+        <h1 class="text-2xl font-extrabold tracking-wide text-slate-900">{vehicle.vrm}</h1>
+        <p class="mt-1 text-sm text-slate-500">{vehicle.id} · last updated {formatNoteTime(vehicle.updated_at)}</p>
+
+        <form method="post" class="mt-5 grid gap-3 sm:grid-cols-2">
+          <input type="hidden" name="action" value="update" />
+          <label class="block text-[11px] font-bold tracking-wide text-slate-500 uppercase sm:col-span-2">
+            Make / model
+            <input name="make_model" value={vehicle.make_model} class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-normal normal-case tracking-normal text-slate-900" />
+          </label>
+          <label class="block text-[11px] font-bold tracking-wide text-slate-500 uppercase sm:col-span-2">
+            Engine / fuel
+            <input name="engine" value={vehicle.engine} class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-normal normal-case tracking-normal text-slate-900" />
+          </label>
+          <label class="block text-[11px] font-bold tracking-wide text-slate-500 uppercase sm:col-span-2">
+            Vehicle notes
+            <textarea name="notes" rows="3" placeholder="Tyre size, known issues, spare key…" class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-normal normal-case tracking-normal text-slate-900">{vehicle.notes}</textarea>
+          </label>
+          <div class="sm:col-span-2">
+            <button class="rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white">Save details</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="rounded-2xl border border-slate-200 bg-white p-5">
+        <h2 class="text-lg font-bold text-slate-900">Jobs on this vehicle</h2>
+        {jobs.length === 0 ? (
+          <p class="mt-3 text-sm text-slate-500">No invoices logged against this registration yet. Add them on the customer record.</p>
+        ) : (
+          <ul class="mt-3 space-y-3">
+            {jobs.map((job) => {
+              const summary = jobSummary(job);
+              return (
+                <li class="group relative rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 hover:border-brand-200 hover:bg-brand-50/40">
+                  <a
+                    href={`/admin/jobs/${job.id}`}
+                    class="absolute inset-0 z-[1] rounded-xl"
+                    aria-label={`Edit job ${job.description}`}
+                  ></a>
+                  <div class="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <div class="font-semibold text-brand-700 group-hover:text-brand-800">{job.description}</div>
+                      <div class="text-xs text-slate-500">
+                        {formatLongDate(job.job_date)}
+                        {job.invoice_ref && <> · {job.invoice_ref}</>}
+                        {' · '}
+                        <a href={`/admin/customers/${job.customer_id}`} class="relative z-[2] font-semibold text-brand-700">Customer record</a>
+                      </div>
+                    </div>
+                    <span class="relative z-[2] inline-flex items-center gap-2">
+                      <span class:list={['rounded-full px-2 py-0.5 text-[10px] font-bold uppercase', statusClass(summary.status)]}>
+                        {summary.status}
+                      </span>
+                      <span class="text-[11px] font-semibold text-slate-500 group-hover:text-brand-700">Edit</span>
+                    </span>
+                  </div>
+                  <dl class="mt-2 grid grid-cols-3 gap-2 text-xs">
+                    <div>
+                      <dt class="text-slate-500">Invoiced</dt>
+                      <dd class="font-semibold text-slate-900">{formatPounds(job.amount_pence)}</dd>
+                    </div>
+                    <div>
+                      <dt class="text-slate-500">Paid</dt>
+                      <dd class="font-semibold text-emerald-700">{formatPounds(job.paid_pence)}</dd>
+                    </div>
+                    <div>
+                      <dt class="text-slate-500">Balance</dt>
+                      <dd class="font-semibold text-slate-900">{formatPounds(summary.balance)}</dd>
+                    </div>
+                  </dl>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+    </div>
+
+    <div class="space-y-6 lg:col-span-5">
+      <section class="rounded-2xl border border-slate-200 bg-white p-5">
+        <h2 class="text-lg font-bold text-slate-900">Assigned customers</h2>
+        <p class="mt-1 text-xs text-slate-500">A vehicle can belong to more than one customer — for example a family or a company car.</p>
+        <ul class="mt-3 space-y-2 text-sm">
+          {owners.length === 0 && <li class="text-slate-500">Not assigned to a customer yet.</li>}
+          {owners.map((owner) => (
+            <li class="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+              <div class="flex items-center justify-between gap-2">
+                <a href={`/admin/customers/${owner.id}`} class="font-semibold text-brand-700 hover:text-brand-800">{owner.name}</a>
+                <form method="post">
+                  <input type="hidden" name="action" value="unlink_customer" />
+                  <input type="hidden" name="customer_id" value={owner.id} />
+                  <button class="text-[11px] font-semibold text-slate-500 hover:text-rose-700">Unlink</button>
+                </form>
+              </div>
+              <div class="text-xs text-slate-500">{owner.phone}{owner.email ? ` · ${owner.email}` : ''}</div>
+            </li>
+          ))}
+        </ul>
+        <form method="post" class="mt-4 space-y-2 border-t border-slate-100 pt-4">
+          <input type="hidden" name="action" value="link_customer" />
+          <input name="customer_id" placeholder="Customer ID (optional)" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+          <input name="phone" placeholder="Phone — finds an existing customer" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+          <input name="name" placeholder="Name — only needed to create a new customer" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+          <button class="w-full rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-semibold text-slate-800">Assign customer</button>
+        </form>
+      </section>
+
+      <section class="rounded-2xl border border-slate-200 bg-white p-5">
+        <h2 class="text-lg font-bold text-slate-900">Visit history</h2>
+        {visits.length === 0 ? (
+          <p class="mt-3 text-sm text-slate-500">No diary bookings for this registration yet.</p>
+        ) : (
+          <ul class="mt-3 divide-y divide-slate-100 text-sm">
+            {visits.map((visit) => (
+              <li class="flex items-start justify-between gap-3 py-3">
+                <div>
+                  <div class="font-semibold text-slate-900">{visit.service}</div>
+                  <div class="text-xs text-slate-500">
+                    {formatLongDate(visit.date)} · {visit.time}
+                    {visit.customer_id ? (
+                      <>
+                        {' · '}
+                        <a href={`/admin/customers/${visit.customer_id}`} class="font-semibold text-brand-700">{visit.customer_name}</a>
+                      </>
+                    ) : visit.customer_name ? (
+                      <> · {visit.customer_name}</>
+                    ) : null}
+                  </div>
+                  {visit.notes && <div class="mt-1 text-xs text-slate-600">{visit.notes}</div>}
+                </div>
+                <a href={`/admin?id=${visit.id}`} class="shrink-0 text-[11px] font-semibold text-brand-700 capitalize">{visit.status}</a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
+  </div>
+</AdminLayout>

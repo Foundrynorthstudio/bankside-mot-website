@@ -12,7 +12,8 @@ interface Props {
 const { title, notice, error } = Astro.props;
 const path = Astro.url.pathname.replace(/\/$/, '') || '/';
 const onDiary = path === '/admin';
-const onCustomers = path.startsWith('/admin/customers');
+const onCustomers = path.startsWith('/admin/customers') || path.startsWith('/admin/jobs');
+const onVehicles = path.startsWith('/admin/vehicles');
 ---
 
 <!DOCTYPE html>
@@ -35,7 +36,7 @@ const onCustomers = path.startsWith('/admin/customers');
           <Logo variant="mark" class="h-11 w-11 rounded-lg object-cover ring-1 ring-slate-200" />
           <div>
             <div class="text-sm font-bold text-slate-900">{business.name}</div>
-            <div class="text-[11px] text-slate-500">Diary & customer CRM</div>
+            <div class="text-[11px] text-slate-500">Diary, customers & vehicles</div>
           </div>
         </a>
         <nav class="flex items-center gap-1 text-xs font-semibold">
@@ -50,6 +51,12 @@ const onCustomers = path.startsWith('/admin/customers');
             class:list={['rounded-lg px-3 py-2', onCustomers ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50']}
           >
             Customers
+          </a>
+          <a
+            href="/admin/vehicles"
+            class:list={['rounded-lg px-3 py-2', onVehicles ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50']}
+          >
+            Vehicles
           </a>
         </nav>
         <div class="flex items-center gap-2">

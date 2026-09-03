@@ -3,8 +3,8 @@ export const prerender = false;
 
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { isEmailConfigured } from '../../lib/booking/auth';
-import { SERVICES, SLOT_TIMES } from '../../lib/booking/config';
-import { addDaysISO, formatDayHeading, formatLongDate, mondayOfWeek, todayISO, weekdaysFrom } from '../../lib/booking/dates';
+import { diaryById, parseDiaryId, resourceLabel, servicesForDiary } from '../../lib/booking/config';
+import { addDaysISO, formatDayHeading, formatLongDate, formatSlotRange, mondayOfWeek, timeToMinutes, todayISO, weekdaysFrom } from '../../lib/booking/dates';
 import { createBooking, getBooking, listBookingsBetween, SlotTakenError, updateBookingStatus } from '../../lib/booking/db';
 import { backfillCustomersFromBookings } from '../../lib/booking/customers';
 import { sendBookingEmails } from '../../lib/booking/email';
@@ -21,17 +21,27 @@ const prevWeek = addDaysISO(monday, -7);
 const nextWeek = addDaysISO(monday, 7);
 const selectedId = url.searchParams.get('id');
 const compose = url.searchParams.get('slot');
+const selected = selectedId ? getBooking(selectedId) : null;
+const diaryId = parseDiaryId(url.searchParams.get('diary') || selected?.diary);
+const diary = diaryById(diaryId);
+const diaryServices = servicesForDiary(diaryId);
 
 let notice = url.searchParams.get('notice') || '';
 let error = url.searchParams.get('error') || '';
+
+function slotKey(date: string, time: string, resource: string) {
+  return `${date}_${time}_${resource}`;
+}
 
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
   const action = String(form.get('action') ?? '');
   const week = String(form.get('week') ?? monday);
+  const postedDiary = parseDiaryId(String(form.get('diary') ?? diaryId));
   const returnTo = (extra: Record<string, string>) => {
     const next = new URL('/admin', url.origin);
     next.searchParams.set('week', week);
+    next.searchParams.set('diary', postedDiary);
     for (const [key, value] of Object.entries(extra)) {
       if (value) next.searchParams.set(key, value);
     }
@@ -40,6 +50,7 @@ if (Astro.request.method === 'POST') {
 
   try {
     if (action === 'create') {
+      const resource = String(form.get('resource') ?? diary.resources[0].id);
       const { errors, value } = validatePublicBooking(
         {
           service: String(form.get('service') ?? ''),
@@ -56,10 +67,15 @@ if (Astro.request.method === 'POST') {
         { requireEmail: false, allowPast: true },
       );
       if (errors.length > 0 || !value) {
-        return returnTo({ error: errors[0] ?? 'Check the booking details.', slot: `${String(form.get('date'))}_${String(form.get('time'))}` });
+        return returnTo({
+          error: errors[0] ?? 'Check the booking details.',
+          slot: `${String(form.get('date'))}_${String(form.get('time'))}_${resource}`,
+        });
       }
       const booking = createBooking({
         ...value,
+        diary: postedDiary,
+        resource,
         source: String(form.get('source') ?? 'phone') as 'phone' | 'walk-in' | 'admin',
         status: 'confirmed',
       });
@@ -74,11 +90,14 @@ if (Astro.request.method === 'POST') {
     if (action === 'block') {
       const date = String(form.get('date') ?? '');
       const time = String(form.get('time') ?? '');
+      const resource = String(form.get('resource') ?? diary.resources[0].id);
       createBooking({
         service: 'Unavailable',
         price: 0,
         date,
         time,
+        diary: postedDiary,
+        resource,
         vrm: 'BLOCKED',
         customer_name: 'Blocked slot',
         customer_phone: '00000000000',
@@ -105,16 +124,23 @@ if (Astro.request.method === 'POST') {
   }
 }
 
-const bookings = listBookingsBetween(days[0], days[4]);
+const bookings = listBookingsBetween(days[0], days[4], diaryId);
 const bySlot = new Map<string, Booking>();
 for (const booking of bookings) {
-  bySlot.set(`${booking.date}_${booking.time}`, booking);
+  bySlot.set(slotKey(booking.date, booking.time, booking.resource), booking);
 }
 
-const selected = selectedId ? getBooking(selectedId) : null;
-const composeDate = compose?.split('_')[0] ?? '';
-const composeTime = compose?.split('_')[1] ?? '';
+const configuredTimes: string[] = [...diary.slotTimes];
+const extraTimes = [...new Set(bookings.map((booking) => booking.time))].filter((time) => !configuredTimes.includes(time));
+const slotTimes = [...configuredTimes, ...extraTimes].sort((left, right) => timeToMinutes(left) - timeToMinutes(right));
+
+const composeParts = compose?.split('_') ?? [];
+const composeDate = composeParts[0] ?? '';
+const composeTime = composeParts[1] ?? '';
+const composeResource = composeParts[2] || diary.resources[0].id;
+const composeResourceName = resourceLabel(diaryId, composeResource);
 const emailReady = isEmailConfigured();
+const splitCells = diary.resources.length > 1;
 
 function cellClass(booking: Booking | undefined) {
   if (!booking) return 'border-slate-200 bg-white hover:border-brand-300 hover:bg-brand-50/40';
@@ -124,24 +150,44 @@ function cellClass(booking: Booking | undefined) {
   if (booking.service.includes('Diagnostic')) return 'border-amber-200 bg-amber-50';
   return 'border-sky-200 bg-sky-50';
 }
+
+function weekHref(week: string, extra = '') {
+  return `/admin?week=${week}&diary=${diaryId}${extra}`;
+}
 ---
 
-<AdminLayout title="Workshop diary | Bankside MOT & Repair" notice={notice} error={error}>
+<AdminLayout title={`${diary.name} diary | Bankside MOT & Repair`} notice={notice} error={error}>
   {!emailReady && (
     <p class="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
       Bookings are saving, but garage emails will not send until SMTP is set in <code class="font-mono">.env</code> (SMTP_HOST, SMTP_USER, SMTP_PASS, GARAGE_EMAIL).
     </p>
   )}
 
-  <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+  <div class="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
     <div>
-      <h1 class="text-2xl font-extrabold text-slate-900">Booking calendar</h1>
-      <p class="text-sm text-slate-500">Week of {formatDayHeading(monday)} — {formatDayHeading(days[4])}</p>
+      <h1 class="text-2xl font-extrabold text-slate-900">{diary.name} diary</h1>
+      <p class="text-sm text-slate-500">
+        {diary.blurb}. Week of {formatDayHeading(monday)} — {formatDayHeading(days[4])}
+      </p>
     </div>
-    <div class="flex items-center gap-2">
-      <a href={`/admin?week=${prevWeek}`} class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">Previous</a>
-      <a href={`/admin?week=${today}`} class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">This week</a>
-      <a href={`/admin?week=${nextWeek}`} class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">Next</a>
+    <div class="flex flex-wrap items-center gap-2">
+      <div class="flex rounded-xl border border-slate-200 bg-white p-1 text-xs font-semibold">
+        <a
+          href={`/admin?week=${monday}&diary=mot`}
+          class:list={['rounded-lg px-3 py-1.5', diaryId === 'mot' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50']}
+        >
+          MOT
+        </a>
+        <a
+          href={`/admin?week=${monday}&diary=service`}
+          class:list={['rounded-lg px-3 py-1.5', diaryId === 'service' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50']}
+        >
+          Services
+        </a>
+      </div>
+      <a href={weekHref(prevWeek)} class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">Previous</a>
+      <a href={weekHref(today)} class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">This week</a>
+      <a href={weekHref(nextWeek)} class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">Next</a>
     </div>
   </div>
 
@@ -150,7 +196,7 @@ function cellClass(booking: Booking | undefined) {
       <table class="w-full min-w-[720px] border-collapse text-left text-xs">
         <thead>
           <tr class="border-b border-slate-200 bg-slate-50 text-slate-600">
-            <th class="w-20 px-3 py-3 font-semibold">Time</th>
+            <th class="w-24 px-3 py-3 font-semibold">Time</th>
             {days.map((day) => (
               <th class="px-2 py-3 font-semibold">
                 <div>{formatDayHeading(day)}</div>
@@ -160,28 +206,34 @@ function cellClass(booking: Booking | undefined) {
           </tr>
         </thead>
         <tbody>
-          {SLOT_TIMES.map((time) => (
+          {slotTimes.map((time) => (
             <tr class="border-b border-slate-100">
-              <th class="px-3 py-2 font-bold text-slate-700">{time}</th>
-              {days.map((day) => {
-                const booking = bySlot.get(`${day}_${time}`);
-                return (
-                  <td class="p-1.5 align-top">
-                    {booking ? (
-                      <a href={`/admin?week=${monday}&id=${booking.id}`} class:list={['block min-h-[4.5rem] rounded-xl border p-2 transition', cellClass(booking)]}>
-                        <div class="font-bold text-slate-900">{booking.status === 'blocked' ? 'Blocked' : booking.vrm}</div>
-                        <div class="text-[11px] text-slate-600">{booking.status === 'blocked' ? booking.notes || 'Unavailable' : booking.customer_name}</div>
-                        <div class="mt-1 text-[10px] font-semibold text-slate-500">{booking.service}</div>
-                      </a>
-                    ) : (
-                      <a href={`/admin?week=${monday}&slot=${day}_${time}`} class:list={['block min-h-[4.5rem] rounded-xl border border-dashed p-2 text-slate-400 transition', cellClass(undefined)]}>
-                        <div class="text-[11px] font-semibold">Open</div>
-                        <div class="text-[10px]">Add or block</div>
-                      </a>
-                    )}
-                  </td>
-                );
-              })}
+              <th class="px-3 py-2 font-bold text-slate-700">
+                <div>{formatSlotRange(time, diary.durationMinutes)}</div>
+                {splitCells && <div class="mt-1 font-medium text-[10px] text-slate-400">2 mechanics</div>}
+              </th>
+              {days.map((day) => (
+                <td class="p-1.5 align-top">
+                  <div class:list={[splitCells ? 'grid grid-cols-2 gap-1' : '']}>
+                    {diary.resources.map((resource) => {
+                      const booking = bySlot.get(slotKey(day, time, resource.id));
+                      return booking ? (
+                        <a href={weekHref(monday, `&id=${booking.id}`)} class:list={['block min-h-[4.25rem] rounded-xl border p-2 transition', cellClass(booking)]}>
+                          {splitCells && <div class="text-[10px] font-semibold text-slate-500">{resource.label}</div>}
+                          <div class="font-bold text-slate-900">{booking.status === 'blocked' ? 'Blocked' : booking.vrm}</div>
+                          <div class="text-[11px] text-slate-600">{booking.status === 'blocked' ? booking.notes || 'Unavailable' : booking.customer_name}</div>
+                          <div class="mt-1 text-[10px] font-semibold text-slate-500">{booking.service}</div>
+                        </a>
+                      ) : (
+                        <a href={weekHref(monday, `&slot=${day}_${time}_${resource.id}`)} class:list={['block min-h-[4.25rem] rounded-xl border border-dashed p-2 text-slate-400 transition', cellClass(undefined)]}>
+                          <div class="text-[11px] font-semibold">{splitCells ? resource.label : 'Open'}</div>
+                          <div class="text-[10px]">Add or block</div>
+                        </a>
+                      );
+                    })}
+                  </div>
+                </td>
+              ))}
             </tr>
           ))}
         </tbody>
@@ -196,15 +248,22 @@ function cellClass(booking: Booking | undefined) {
               <div class="text-[10px] font-semibold tracking-wider text-brand-600 uppercase">{selected.status}</div>
               <h2 class="text-lg font-bold text-slate-900">{selected.id}</h2>
             </div>
-            <a href={`/admin?week=${monday}`} class="text-xs text-slate-500 hover:text-slate-800">Close</a>
+            <a href={weekHref(monday)} class="text-xs text-slate-500 hover:text-slate-800">Close</a>
           </div>
           <dl class="space-y-1.5 text-sm">
-            <div class="flex justify-between gap-3"><dt class="text-slate-500">When</dt><dd class="font-semibold text-slate-900">{formatLongDate(selected.date)} · {selected.time}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">When</dt><dd class="font-semibold text-slate-900">{formatLongDate(selected.date)} · {formatSlotRange(selected.time, diaryById(parseDiaryId(selected.diary)).durationMinutes)}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">Diary</dt><dd class="font-semibold text-slate-900">{diaryById(parseDiaryId(selected.diary)).name} · {resourceLabel(parseDiaryId(selected.diary), selected.resource)}</dd></div>
             <div class="flex justify-between gap-3"><dt class="text-slate-500">Service</dt><dd class="font-semibold text-slate-900">{selected.service}</dd></div>
             {selected.status !== 'blocked' && (
               <>
                 <div class="flex justify-between gap-3"><dt class="text-slate-500">VRM</dt><dd class="font-semibold text-slate-900">{selected.vrm}</dd></div>
                 <div class="flex justify-between gap-3"><dt class="text-slate-500">Vehicle</dt><dd class="text-right text-slate-800">{selected.vehicle_make_model || '—'}</dd></div>
+                {selected.vehicle_id && (
+                  <div class="flex justify-between gap-3">
+                    <dt class="text-slate-500">Vehicle record</dt>
+                    <dd><a href={`/admin/vehicles/${selected.vehicle_id}`} class="font-semibold text-brand-700">Open record</a></dd>
+                  </div>
+                )}
                 <div class="flex justify-between gap-3"><dt class="text-slate-500">Customer</dt><dd class="text-right font-semibold text-slate-900">{selected.customer_name}</dd></div>
                 {selected.customer_id && (
                   <div class="flex justify-between gap-3">
@@ -224,12 +283,14 @@ function cellClass(booking: Booking | undefined) {
             <div class="mt-4 grid grid-cols-2 gap-2">
               <form method="post">
                 <input type="hidden" name="week" value={monday} />
+                <input type="hidden" name="diary" value={diaryId} />
                 <input type="hidden" name="id" value={selected.id} />
                 <input type="hidden" name="action" value="complete" />
                 <button class="w-full rounded-xl bg-brand-600 py-2.5 text-xs font-semibold text-white">Mark complete</button>
               </form>
               <form method="post">
                 <input type="hidden" name="week" value={monday} />
+                <input type="hidden" name="diary" value={diaryId} />
                 <input type="hidden" name="id" value={selected.id} />
                 <input type="hidden" name="action" value="cancel" />
                 <button class="w-full rounded-xl border border-red-200 bg-red-50 py-2.5 text-xs font-semibold text-red-800">Cancel slot</button>
@@ -239,6 +300,7 @@ function cellClass(booking: Booking | undefined) {
           {selected.status === 'blocked' && (
             <form method="post" class="mt-4">
               <input type="hidden" name="week" value={monday} />
+              <input type="hidden" name="diary" value={diaryId} />
               <input type="hidden" name="id" value={selected.id} />
               <input type="hidden" name="action" value="cancel" />
               <button class="w-full rounded-xl bg-slate-900 py-2.5 text-xs font-semibold text-white">Unblock this slot</button>
@@ -251,21 +313,27 @@ function cellClass(booking: Booking | undefined) {
         <section class="rounded-2xl border border-slate-200 bg-white p-5">
           <div class="mb-3 flex items-start justify-between">
             <div>
-              <h2 class="text-lg font-bold text-slate-900">Add to diary</h2>
-              <p class="text-sm text-slate-500">{formatLongDate(composeDate)} at {composeTime}</p>
+              <h2 class="text-lg font-bold text-slate-900">Add to {diary.name.toLowerCase()} diary</h2>
+              <p class="text-sm text-slate-500">
+                {formatLongDate(composeDate)} · {formatSlotRange(composeTime, diary.durationMinutes)}
+                {splitCells && <> · {composeResourceName}</>}
+              </p>
             </div>
-            <a href={`/admin?week=${monday}`} class="text-xs text-slate-500">Close</a>
+            <a href={weekHref(monday)} class="text-xs text-slate-500">Close</a>
           </div>
 
-          <form method="post" class="space-y-2">
+          <form method="post" class="space-y-2" data-directory-form>
             <input type="hidden" name="week" value={monday} />
+            <input type="hidden" name="diary" value={diaryId} />
+            <input type="hidden" name="resource" value={composeResource} />
             <input type="hidden" name="action" value="create" />
             <input type="hidden" name="date" value={composeDate} />
             <input type="hidden" name="time" value={composeTime} />
+            <input type="hidden" name="vehicle_engine" value="" />
             <label class="block text-[11px] font-bold tracking-wide text-slate-500 uppercase">
               Service
               <select name="service" class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-                {SERVICES.map((service) => (
+                {diaryServices.map((service) => (
                   <option value={service.name}>{service.name} · £{service.price}</option>
                 ))}
               </select>
@@ -278,9 +346,11 @@ function cellClass(booking: Booking | undefined) {
                 <option value="admin">Admin</option>
               </select>
             </label>
-            <input name="vrm" required placeholder="Registration" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm uppercase" />
-            <input name="customer_name" required placeholder="Customer name" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
-            <input name="customer_phone" required placeholder="Phone" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+            <p class="pt-1 text-[11px] font-medium text-slate-500">Start typing a name, phone or registration to fill in a returning customer.</p>
+            <input name="vrm" data-directory-field required placeholder="Registration" autocomplete="off" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm uppercase" />
+            <input name="customer_name" data-directory-field required placeholder="Customer name" autocomplete="off" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+            <input name="customer_phone" data-directory-field required placeholder="Phone" autocomplete="off" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+            <div data-directory-results hidden class="space-y-1 rounded-xl border border-brand-200 bg-white p-1 shadow-sm"></div>
             <input name="customer_email" type="email" placeholder="Email (optional)" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
             <input name="vehicle_make_model" placeholder="Make / model (optional)" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
             <select name="payment_method" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
@@ -293,6 +363,8 @@ function cellClass(booking: Booking | undefined) {
 
           <form method="post" class="mt-3 border-t border-slate-100 pt-3">
             <input type="hidden" name="week" value={monday} />
+            <input type="hidden" name="diary" value={diaryId} />
+            <input type="hidden" name="resource" value={composeResource} />
             <input type="hidden" name="action" value="block" />
             <input type="hidden" name="date" value={composeDate} />
             <input type="hidden" name="time" value={composeTime} />
@@ -306,12 +378,18 @@ function cellClass(booking: Booking | undefined) {
         <section class="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-600">
           <h2 class="mb-2 font-bold text-slate-900">How to use</h2>
           <ul class="list-disc space-y-1 pl-4">
+            <li>Switch between the MOT diary and the Services diary at the top.</li>
+            <li>MOT tests are hourly from 08:30 to 16:00. Services run in two-hour slots with Mechanic 1 and Mechanic 2.</li>
             <li>Click an open slot to add a phone booking or block it.</li>
+            <li>When adding a booking, type a name, phone or registration to fill in a returning customer.</li>
             <li>Click a booking to see customer details, complete it, or cancel it.</li>
-            <li>Cancelled slots go back on the public booking calendar immediately.</li>
           </ul>
         </section>
       )}
     </aside>
   </div>
 </AdminLayout>
+
+<script>
+  import '../../scripts/admin-diary';
+</script>

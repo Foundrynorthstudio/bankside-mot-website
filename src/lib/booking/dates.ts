@@ -1,4 +1,4 @@
-import { BOOKING_HORIZON_DAYS, SAME_DAY_BUFFER_MINUTES, SLOT_TIMES, TIMEZONE } from './config';
+import { BOOKING_HORIZON_DAYS, SAME_DAY_BUFFER_MINUTES, TIMEZONE, type DiaryId, diaryById } from './config';
 
 export function todayISO(now = new Date()) {
   return new Intl.DateTimeFormat('en-CA', {
@@ -73,6 +73,17 @@ export function timeToMinutes(time: string) {
   return hour * 60 + minute;
 }
 
+export function addMinutesToTime(time: string, minutes: number) {
+  const total = timeToMinutes(time) + minutes;
+  const hour = Math.floor(total / 60);
+  const minute = total % 60;
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+export function formatSlotRange(start: string, durationMinutes: number) {
+  return `${start}–${addMinutesToTime(start, durationMinutes)}`;
+}
+
 export function maxBookableDate(now = new Date()) {
   return addDaysISO(todayISO(now), BOOKING_HORIZON_DAYS);
 }
@@ -84,6 +95,9 @@ export function isSlotInPast(date: string, time: string, now = new Date()) {
   return timeToMinutes(time) < nowMinutesLondon(now) + SAME_DAY_BUFFER_MINUTES;
 }
 
-export function isValidSlotTime(time: string) {
-  return (SLOT_TIMES as readonly string[]).includes(time);
+export function isValidSlotTime(time: string, diaryId?: DiaryId) {
+  if (diaryId) {
+    return (diaryById(diaryId).slotTimes as readonly string[]).includes(time);
+  }
+  return isValidSlotTime(time, 'mot') || isValidSlotTime(time, 'service');
 }

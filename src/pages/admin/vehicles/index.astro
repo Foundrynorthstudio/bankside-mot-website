@@ -1,0 +1,109 @@
+---
+export const prerender = false;
+
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { backfillCustomersFromBookings } from '../../../lib/booking/customers';
+import { createVehicle, searchVehicles } from '../../../lib/booking/vehicles';
+import { normaliseVrm } from '../../../lib/booking/validate';
+
+const url = Astro.url;
+backfillCustomersFromBookings();
+const q = url.searchParams.get('q') ?? '';
+let notice = url.searchParams.get('notice') || '';
+let error = url.searchParams.get('error') || '';
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const vrm = normaliseVrm(String(form.get('vrm') ?? ''));
+  const makeModel = String(form.get('make_model') ?? '').trim();
+  const engine = String(form.get('engine') ?? '').trim();
+
+  if (vrm.length < 2) {
+    error = 'Enter a valid registration.';
+  } else {
+    const vehicle = createVehicle({ vrm, make_model: makeModel, engine });
+    return Astro.redirect(`/admin/vehicles/${vehicle.id}?notice=${encodeURIComponent('Vehicle saved.')}`);
+  }
+}
+
+const vehicles = searchVehicles(q);
+---
+
+<AdminLayout title="Vehicles | Bankside MOT & Repair" notice={notice} error={error}>
+  <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <h1 class="text-2xl font-extrabold text-slate-900">Vehicle records</h1>
+      <p class="text-sm text-slate-500">Each registration is its own record. Assign it to one or more customers from the vehicle page.</p>
+    </div>
+    <form method="get" class="flex w-full max-w-md gap-2">
+      <input
+        type="search"
+        name="q"
+        value={q}
+        placeholder="SK19 MOT, Ford Focus, customer name…"
+        class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-500"
+      />
+      <button class="rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white">Search</button>
+    </form>
+  </div>
+
+  <div class="grid gap-6 lg:grid-cols-12">
+    <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white lg:col-span-8">
+      {vehicles.length === 0 ? (
+        <p class="p-6 text-sm text-slate-500">{q ? `No vehicles match “${q}”.` : 'No vehicles yet. Bookings and customer records create them automatically.'}</p>
+      ) : (
+        <table class="w-full text-left text-sm">
+          <thead class="border-b border-slate-100 bg-slate-50 text-xs font-semibold tracking-wide text-slate-500 uppercase">
+            <tr>
+              <th class="px-4 py-3">Registration</th>
+              <th class="px-4 py-3">Vehicle</th>
+              <th class="px-4 py-3">Customers</th>
+              <th class="px-4 py-3"><span class="sr-only">Open record</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {vehicles.map((vehicle) => (
+              <tr class="group border-b border-slate-100 last:border-0 hover:bg-brand-50/60">
+                <td class="relative px-4 py-3">
+                  <a href={`/admin/vehicles/${vehicle.id}`} class="absolute inset-0 z-[1]" aria-label={`Open record for ${vehicle.vrm}`}></a>
+                  <div class="font-bold tracking-wide text-brand-700 group-hover:text-brand-800">{vehicle.vrm}</div>
+                </td>
+                <td class="relative px-4 py-3 text-slate-700">
+                  <a href={`/admin/vehicles/${vehicle.id}`} class="absolute inset-0 z-[1]" tabindex="-1" aria-hidden="true"></a>
+                  {vehicle.make_model || '—'}
+                  {vehicle.engine && <div class="text-xs text-slate-500">{vehicle.engine}</div>}
+                </td>
+                <td class="relative px-4 py-3 text-slate-700">
+                  <a href={`/admin/vehicles/${vehicle.id}`} class="absolute inset-0 z-[1]" tabindex="-1" aria-hidden="true"></a>
+                  {vehicle.owners || 'Unassigned'}
+                </td>
+                <td class="relative px-4 py-3 text-right">
+                  <a
+                    href={`/admin/vehicles/${vehicle.id}`}
+                    class="relative z-[1] inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white group-hover:bg-brand-700"
+                    tabindex="-1"
+                    aria-hidden="true"
+                  >
+                    Open
+                    <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                  </a>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+
+    <section class="rounded-2xl border border-slate-200 bg-white p-5 lg:col-span-4">
+      <h2 class="text-lg font-bold text-slate-900">Add vehicle</h2>
+      <p class="mt-1 mb-4 text-xs text-slate-500">Use this for a walk-in or phone enquiry before a booking is made. Existing registrations are reused rather than duplicated.</p>
+      <form method="post" class="space-y-2">
+        <input name="vrm" required placeholder="Registration" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm uppercase" />
+        <input name="make_model" placeholder="Make / model (optional)" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+        <input name="engine" placeholder="Engine / fuel (optional)" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+        <button class="w-full rounded-xl bg-brand-600 py-2.5 text-xs font-semibold text-white">Save vehicle</button>
+      </form>
+    </section>
+  </div>
+</AdminLayout>

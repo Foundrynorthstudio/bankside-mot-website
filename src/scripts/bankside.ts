@@ -98,7 +98,7 @@ Alpine.data('banksideApp', () => ({
   bookingDate: nextWeekdayISO(),
   minDate: londonISO(),
   maxDate: addDaysISO(londonISO(), 56),
-  availableSlots: [] as { time: string; available: boolean; reason: string | null }[],
+  availableSlots: [] as { time: string; label?: string; available: boolean; reason: string | null }[],
   slotsLoading: false,
   selectedTime: '',
   customerName: '',
@@ -207,7 +207,7 @@ Alpine.data('banksideApp', () => ({
     if (!this.bookingDate) return;
     this.slotsLoading = true;
     try {
-      const response = await fetch(`/api/slots?date=${this.bookingDate}`);
+      const response = await fetch(`/api/slots?date=${this.bookingDate}&service=${encodeURIComponent(this.selectedService)}`);
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Could not load times.');
       this.availableSlots = data.slots ?? [];

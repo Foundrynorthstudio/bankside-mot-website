@@ -53,13 +53,13 @@ import { SERVICES } from '../lib/booking/config';
       <div>
         <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Preferred Booking Date</label>
         <input type="date" x-model="bookingDate" :min="minDate" :max="maxDate" @change="loadSlots()" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 outline-none">
-        <p class="mt-1 text-[11px] text-slate-500">Monday to Friday, 8:30–16:00. Taken times are shown as booked.</p>
+        <p class="mt-1 text-[11px] text-slate-500">MOT tests are hourly from 08:30 to 16:00. Services use two-hour slots, with two mechanics available at each time.</p>
       </div>
 
       <div>
         <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Available Time Slot</label>
         <p x-show="slotsLoading" class="text-xs text-slate-500"><i class="fa-solid fa-circle-notch animate-spin mr-1"></i> Checking the diary…</p>
-        <div class="grid grid-cols-3 gap-2 text-xs">
+        <div class="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
           <template x-for="slot in availableSlots" :key="slot.time">
             <button
               type="button"
@@ -68,7 +68,7 @@ import { SERVICES } from '../lib/booking/config';
               :class="!slot.available ? 'bg-slate-100 text-slate-400 cursor-not-allowed line-through' : selectedTime === slot.time ? 'bg-brand-600 text-white font-semibold' : 'bg-slate-50 text-slate-700 hover:bg-slate-100'"
               class="py-2 px-2 rounded-lg border border-slate-200 text-center transition"
             >
-              <span x-text="slot.time"></span>
+              <span x-text="slot.label || slot.time"></span>
               <span x-show="slot.reason === 'booked'" class="block text-[10px] font-semibold no-underline">Booked</span>
               <span x-show="slot.reason === 'closed'" class="block text-[10px] font-semibold no-underline">Closed</span>
             </button>

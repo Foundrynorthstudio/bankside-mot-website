@@ -12,7 +12,10 @@ import {
   listCustomerVehicles,
   updateCustomer,
 } from '../../../lib/booking/customers';
-import { formatLongDate } from '../../../lib/booking/dates';
+import { formatLongDate, todayISO } from '../../../lib/booking/dates';
+import { createJob, customerJobTotals, JOB_PAYMENT_METHODS, jobSummary, listCustomerJobs, parseJobForm, recordJobPayment, validateJobFields } from '../../../lib/booking/jobs';
+import { formatPounds } from '../../../lib/booking/money';
+import { unlinkCustomerFromVehicle } from '../../../lib/booking/vehicles';
 import { normalisePhone, normaliseVrm } from '../../../lib/booking/validate';
 
 const { id } = Astro.params;
@@ -57,7 +60,32 @@ if (Astro.request.method === 'POST') {
     const vrm = normaliseVrm(String(form.get('vrm') ?? ''));
     if (vrm.length < 2) return returnTo({ error: 'Enter a valid registration.' });
     addCustomerVehicle(id, vrm, String(form.get('make_model') ?? '').trim());
-    return returnTo({ notice: `${vrm} added to this customer.` });
+    return returnTo({ notice: `${vrm} assigned to this customer.` });
+  }
+
+  if (action === 'unlink_vehicle') {
+    const vehicleId = String(form.get('vehicle_id') ?? '');
+    if (!vehicleId) return returnTo({ error: 'Choose a vehicle to unlink.' });
+    unlinkCustomerFromVehicle(id, vehicleId);
+    return returnTo({ notice: 'Vehicle unlinked from this customer.' });
+  }
+
+  if (action === 'job') {
+    const fields = parseJobForm(form);
+    const invalid = validateJobFields(fields);
+    if (invalid) return returnTo({ error: invalid });
+    createJob({
+      customer_id: id,
+      ...fields,
+    });
+    return returnTo({ notice: 'Job logged on this customer.' });
+  }
+
+  if (action === 'pay') {
+    const jobId = String(form.get('job_id') ?? '');
+    const paid = recordJobPayment(jobId, String(form.get('amount') ?? ''), String(form.get('payment_method') ?? ''));
+    if (!paid) return returnTo({ error: 'Could not record that payment.' });
+    return returnTo({ notice: `Payment recorded on ${paid.id}.` });
   }
 }
 
@@ -69,6 +97,15 @@ if (!customer) {
 const vehicles = listCustomerVehicles(customer.id);
 const notes = listCustomerNotes(customer.id);
 const visits = listCustomerBookings(customer.id);
+const jobs = listCustomerJobs(customer.id);
+const totals = customerJobTotals(customer.id);
+
+function statusClass(status: string) {
+  if (status === 'Paid') return 'bg-emerald-50 text-emerald-800';
+  if (status === 'Part paid') return 'bg-amber-50 text-amber-800';
+  if (status === 'Unpaid') return 'bg-rose-50 text-rose-800';
+  return 'bg-slate-100 text-slate-600';
+}
 ---
 
 <AdminLayout title={`${customer.name} | Customers`} notice={notice} error={error}>
@@ -107,6 +144,152 @@ const visits = listCustomerBookings(customer.id);
       </section>
 
       <section class="rounded-2xl border border-slate-200 bg-white p-5">
+        <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900">Jobs & invoices</h2>
+            <p class="text-xs text-slate-500">Work done for this customer, what was invoiced, and what has been paid. Click a job to amend it.</p>
+          </div>
+          <dl class="flex gap-4 text-right text-xs">
+            <div>
+              <dt class="text-slate-500">Invoiced</dt>
+              <dd class="font-semibold text-slate-900">{formatPounds(totals.amount)}</dd>
+            </div>
+            <div>
+              <dt class="text-slate-500">Paid</dt>
+              <dd class="font-semibold text-emerald-700">{formatPounds(totals.paid)}</dd>
+            </div>
+            <div>
+              <dt class="text-slate-500">Outstanding</dt>
+              <dd class="font-semibold text-slate-900">{formatPounds(totals.outstanding)}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <form method="post" class="mb-5 grid gap-2 rounded-xl border border-slate-100 bg-slate-50 p-3 sm:grid-cols-2">
+          <input type="hidden" name="action" value="job" />
+          <label class="text-[11px] font-bold tracking-wide text-slate-500 uppercase">
+            Date
+            <input type="date" name="job_date" required value={todayISO()} class="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-normal normal-case tracking-normal text-slate-900" />
+          </label>
+          <label class="text-[11px] font-bold tracking-wide text-slate-500 uppercase">
+            Vehicle
+            <select name="vehicle_id" class="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-normal normal-case tracking-normal text-slate-900">
+              <option value="">No vehicle / general job</option>
+              {vehicles.map((vehicle) => (
+                <option value={vehicle.id}>{vehicle.vrm}{vehicle.make_model ? ` · ${vehicle.make_model}` : ''}</option>
+              ))}
+            </select>
+          </label>
+          <label class="text-[11px] font-bold tracking-wide text-slate-500 uppercase sm:col-span-2">
+            What was done
+            <input name="description" required placeholder="e.g. Class 4 MOT, pads and discs, diagnostic" class="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-normal normal-case tracking-normal text-slate-900" />
+          </label>
+          <label class="text-[11px] font-bold tracking-wide text-slate-500 uppercase">
+            Invoice ref
+            <input name="invoice_ref" placeholder="INV-1042" class="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-normal normal-case tracking-normal text-slate-900" />
+          </label>
+          <label class="text-[11px] font-bold tracking-wide text-slate-500 uppercase">
+            Amount £
+            <input name="amount" type="number" min="0" step="0.01" placeholder="0.00" class="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-normal normal-case tracking-normal text-slate-900" />
+          </label>
+          <label class="text-[11px] font-bold tracking-wide text-slate-500 uppercase">
+            Paid £
+            <input name="paid" type="number" min="0" step="0.01" placeholder="0.00" class="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-normal normal-case tracking-normal text-slate-900" />
+          </label>
+          <label class="text-[11px] font-bold tracking-wide text-slate-500 uppercase">
+            Payment method
+            <select name="payment_method" class="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-normal normal-case tracking-normal text-slate-900">
+              <option value="">Not recorded</option>
+              {JOB_PAYMENT_METHODS.map((method) => (
+                <option value={method}>{method}</option>
+              ))}
+            </select>
+          </label>
+          <label class="text-[11px] font-bold tracking-wide text-slate-500 uppercase sm:col-span-2">
+            Job notes
+            <input name="job_notes" placeholder="Parts used, follow-up, advisory…" class="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-normal normal-case tracking-normal text-slate-900" />
+          </label>
+          <div class="sm:col-span-2">
+            <button class="rounded-xl bg-brand-600 px-4 py-2.5 text-xs font-semibold text-white">Add job</button>
+          </div>
+        </form>
+
+        {jobs.length === 0 ? (
+          <p class="text-sm text-slate-500">No jobs logged yet. Add invoices and payments here so the office can see what has been done for this customer.</p>
+        ) : (
+          <ul class="space-y-3">
+            {jobs.map((job) => {
+              const summary = jobSummary(job);
+              return (
+                <li class="group relative rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 hover:border-brand-200 hover:bg-brand-50/40">
+                  <a
+                    href={`/admin/jobs/${job.id}`}
+                    class="absolute inset-0 z-[1] rounded-xl"
+                    aria-label={`Edit job ${job.description}`}
+                  ></a>
+                  <div class="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <div class="font-semibold text-brand-700 group-hover:text-brand-800">{job.description}</div>
+                      <div class="text-xs text-slate-500">
+                        {formatLongDate(job.job_date)}
+                        {job.vrm && (
+                          <>
+                            {' · '}
+                            <a href={`/admin/vehicles/${job.vehicle_id}`} class="relative z-[2] font-semibold text-brand-700">{job.vrm}</a>
+                          </>
+                        )}
+                        {job.invoice_ref && <> · {job.invoice_ref}</>}
+                      </div>
+                    </div>
+                    <span class="relative z-[2] inline-flex items-center gap-2">
+                      <span class:list={['rounded-full px-2 py-0.5 text-[10px] font-bold uppercase', statusClass(summary.status)]}>
+                        {summary.status}
+                      </span>
+                      <span class="text-[11px] font-semibold text-slate-500 group-hover:text-brand-700">Edit</span>
+                    </span>
+                  </div>
+                  <dl class="mt-2 grid grid-cols-3 gap-2 text-xs">
+                    <div>
+                      <dt class="text-slate-500">Invoiced</dt>
+                      <dd class="font-semibold text-slate-900">{formatPounds(job.amount_pence)}</dd>
+                    </div>
+                    <div>
+                      <dt class="text-slate-500">Paid</dt>
+                      <dd class="font-semibold text-emerald-700">{formatPounds(job.paid_pence)}</dd>
+                    </div>
+                    <div>
+                      <dt class="text-slate-500">Balance</dt>
+                      <dd class="font-semibold text-slate-900">{formatPounds(summary.balance)}</dd>
+                    </div>
+                  </dl>
+                  {job.notes && <p class="mt-2 text-xs text-slate-600">{job.notes}</p>}
+                  {summary.balance > 0 && (
+                    <form method="post" class="relative z-[2] mt-3 flex flex-wrap items-end gap-2 border-t border-slate-200 pt-3">
+                      <input type="hidden" name="action" value="pay" />
+                      <input type="hidden" name="job_id" value={job.id} />
+                      <label class="text-[11px] font-bold tracking-wide text-slate-500 uppercase">
+                        Record payment £
+                        <input name="amount" type="number" min="0.01" step="0.01" required placeholder="0.00" class="mt-1 w-28 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-normal normal-case tracking-normal text-slate-900" />
+                      </label>
+                      <label class="text-[11px] font-bold tracking-wide text-slate-500 uppercase">
+                        Method
+                        <select name="payment_method" class="mt-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-normal normal-case tracking-normal text-slate-900">
+                          {JOB_PAYMENT_METHODS.map((method) => (
+                            <option value={method} selected={method === (job.payment_method || 'Cash')}>{method}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <button class="rounded-lg bg-slate-900 px-3 py-2 text-[11px] font-semibold text-white">Add payment</button>
+                    </form>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      <section class="rounded-2xl border border-slate-200 bg-white p-5">
         <div class="mb-4 flex items-center justify-between">
           <h2 class="text-lg font-bold text-slate-900">Workshop notes</h2>
           <span class="text-xs text-slate-500">{notes.length} {notes.length === 1 ? 'note' : 'notes'}</span>
@@ -134,12 +317,20 @@ const visits = listCustomerBookings(customer.id);
     <div class="space-y-6 lg:col-span-5">
       <section class="rounded-2xl border border-slate-200 bg-white p-5">
         <h2 class="text-lg font-bold text-slate-900">Vehicles</h2>
+        <p class="mt-1 text-xs text-slate-500">A customer can have more than one vehicle. Assigning a registration that already exists will link this customer to that vehicle record.</p>
         <ul class="mt-3 space-y-2 text-sm">
           {vehicles.length === 0 && <li class="text-slate-500">No registrations stored yet.</li>}
           {vehicles.map((vehicle) => (
-            <li class="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
-              <span class="font-bold tracking-wide text-slate-900">{vehicle.vrm}</span>
-              <span class="text-xs text-slate-500">{vehicle.make_model || '—'}</span>
+            <li class="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+              <div class="flex items-center justify-between gap-2">
+                <a href={`/admin/vehicles/${vehicle.id}`} class="font-bold tracking-wide text-brand-700 hover:text-brand-800">{vehicle.vrm}</a>
+                <form method="post">
+                  <input type="hidden" name="action" value="unlink_vehicle" />
+                  <input type="hidden" name="vehicle_id" value={vehicle.id} />
+                  <button class="text-[11px] font-semibold text-slate-500 hover:text-rose-700">Unlink</button>
+                </form>
+              </div>
+              <div class="text-xs text-slate-500">{vehicle.make_model || '—'}</div>
             </li>
           ))}
         </ul>
@@ -147,7 +338,7 @@ const visits = listCustomerBookings(customer.id);
           <input type="hidden" name="action" value="vehicle" />
           <input name="vrm" required placeholder="Add registration" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm uppercase" />
           <input name="make_model" placeholder="Make / model (optional)" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
-          <button class="w-full rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-semibold text-slate-800">Add vehicle</button>
+          <button class="w-full rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-semibold text-slate-800">Assign vehicle</button>
         </form>
       </section>
 
@@ -161,7 +352,14 @@ const visits = listCustomerBookings(customer.id);
               <li class="flex items-start justify-between gap-3 py-3">
                 <div>
                   <div class="font-semibold text-slate-900">{visit.service}</div>
-                  <div class="text-xs text-slate-500">{formatLongDate(visit.date)} · {visit.time} · {visit.vrm}</div>
+                  <div class="text-xs text-slate-500">
+                    {formatLongDate(visit.date)} · {visit.time} ·{' '}
+                    {visit.vehicle_id ? (
+                      <a href={`/admin/vehicles/${visit.vehicle_id}`} class="font-semibold text-brand-700">{visit.vrm}</a>
+                    ) : (
+                      visit.vrm
+                    )}
+                  </div>
                   {visit.notes && <div class="mt-1 text-xs text-slate-600">{visit.notes}</div>}
                 </div>
                 <a href={`/admin?id=${visit.id}`} class="shrink-0 text-[11px] font-semibold text-brand-700 capitalize">{visit.status}</a>

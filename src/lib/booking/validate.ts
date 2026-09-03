@@ -1,5 +1,5 @@
-import { PAYMENT_METHODS, SLOT_TIMES, serviceByName } from './config';
-import { isSlotInPast, isWeekday, maxBookableDate, todayISO } from './dates';
+import { PAYMENT_METHODS, diaryForService, serviceByName } from './config';
+import { isSlotInPast, isValidSlotTime, isWeekday, maxBookableDate, todayISO } from './dates';
 
 const VRM_PATTERN = /^[A-Z0-9]{2,8}$/;
 const PHONE_PATTERN = /^[0-9+]{10,16}$/;
@@ -49,7 +49,8 @@ export function validatePublicBooking(input: PublicBookingPayload, options?: { a
   const date = (input.date ?? '').trim();
   const time = (input.time ?? '').trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) errors.push('Choose a booking date.');
-  if (!(SLOT_TIMES as readonly string[]).includes(time)) errors.push('Choose an available time slot.');
+  const diaryId = diaryForService(input.service);
+  if (!isValidSlotTime(time, diaryId)) errors.push('Choose an available time slot.');
   if (date && !isWeekday(date)) errors.push('Online booking is Monday to Friday only.');
   if (date && (date < todayISO() || date > maxBookableDate())) errors.push('That date is outside the booking window.');
   if (!options?.allowPast && date && time && isSlotInPast(date, time)) errors.push('That time has already passed.');

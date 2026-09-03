@@ -1,5 +1,6 @@
-import { randomInt } from 'node:crypto';
 import { getDb } from './database';
+import { nextId } from './ids';
+import { listCustomerVehicles, upsertVehicleForCustomer } from './vehicles';
 
 export type Customer = {
   id: string;
@@ -9,14 +10,6 @@ export type Customer = {
   phone: string;
   email: string;
   profile_notes: string;
-};
-
-export type CustomerVehicle = {
-  id: string;
-  customer_id: string;
-  vrm: string;
-  make_model: string;
-  engine: string;
 };
 
 export type CustomerNote = {
@@ -31,9 +24,7 @@ export type CustomerListItem = Customer & {
   vrms: string;
 };
 
-function nextId(prefix: string) {
-  return `${prefix}-${randomInt(100000, 1000000)}`;
-}
+export { listCustomerVehicles };
 
 function mapCustomer(row: Record<string, unknown>): Customer {
   return {
@@ -50,19 +41,6 @@ function mapCustomer(row: Record<string, unknown>): Customer {
 export function getCustomer(id: string) {
   const row = getDb().prepare('SELECT * FROM customers WHERE id = ?').get(id) as Record<string, unknown> | undefined;
   return row ? mapCustomer(row) : null;
-}
-
-export function listCustomerVehicles(customerId: string) {
-  const rows = getDb()
-    .prepare('SELECT * FROM customer_vehicles WHERE customer_id = ? ORDER BY vrm ASC')
-    .all(customerId) as Record<string, unknown>[];
-  return rows.map((row) => ({
-    id: String(row.id),
-    customer_id: String(row.customer_id),
-    vrm: String(row.vrm),
-    make_model: String(row.make_model ?? ''),
-    engine: String(row.engine ?? ''),
-  })) satisfies CustomerVehicle[];
 }
 
 export function listCustomerNotes(customerId: string) {
@@ -92,12 +70,13 @@ export function listCustomerBookings(customerId: string) {
     service: String(row.service),
     status: String(row.status),
     vrm: String(row.vrm),
+    vehicle_id: String(row.vehicle_id ?? ''),
     price: Number(row.price),
     notes: String(row.notes ?? ''),
   }));
 }
 
-function findCustomerByPhone(phone: string) {
+export function findCustomerByPhone(phone: string) {
   if (!phone) return null;
   const row = getDb().prepare('SELECT * FROM customers WHERE phone = ? LIMIT 1').get(phone) as Record<string, unknown> | undefined;
   return row ? mapCustomer(row) : null;
@@ -114,36 +93,13 @@ function findCustomerByVrm(vrm: string) {
   const row = getDb()
     .prepare(
       `SELECT c.* FROM customers c
-       INNER JOIN customer_vehicles v ON v.customer_id = c.id
+       INNER JOIN customer_vehicle_links l ON l.customer_id = c.id
+       INNER JOIN vehicles v ON v.id = l.vehicle_id
        WHERE v.vrm = ?
        LIMIT 1`,
     )
     .get(vrm) as Record<string, unknown> | undefined;
   return row ? mapCustomer(row) : null;
-}
-
-function saveVehicle(customerId: string, vrm: string, makeModel = '', engine = '') {
-  if (!vrm || vrm === 'BLOCKED') return;
-  const database = getDb();
-  const existing = database
-    .prepare('SELECT id FROM customer_vehicles WHERE customer_id = ? AND vrm = ?')
-    .get(customerId, vrm) as { id: string } | undefined;
-  if (existing) {
-    if (makeModel || engine) {
-      database
-        .prepare(
-          `UPDATE customer_vehicles
-           SET make_model = CASE WHEN length(?) > 0 THEN ? ELSE make_model END,
-               engine = CASE WHEN length(?) > 0 THEN ? ELSE engine END
-           WHERE id = ?`,
-        )
-        .run(makeModel, makeModel, engine, engine, existing.id);
-    }
-    return;
-  }
-  database
-    .prepare('INSERT INTO customer_vehicles (id, customer_id, vrm, make_model, engine) VALUES (?, ?, ?, ?, ?)')
-    .run(nextId('VEH'), customerId, vrm, makeModel, engine);
 }
 
 export function upsertCustomerFromBooking(input: {
@@ -154,7 +110,7 @@ export function upsertCustomerFromBooking(input: {
   vehicle_make_model?: string;
   vehicle_engine?: string;
 }) {
-  if (!input.vrm || input.vrm === 'BLOCKED') return null;
+  if (!input.vrm || input.vrm === 'BLOCKED') return { customer: null, vehicle: null };
 
   const existing =
     findCustomerByPhone(input.phone) || findCustomerByEmail(input.email ?? '') || findCustomerByVrm(input.vrm);
@@ -172,8 +128,8 @@ export function upsertCustomerFromBooking(input: {
          WHERE id = ?`,
       )
       .run(input.name, input.phone, input.phone, input.email ?? '', input.email ?? '', now, existing.id);
-    saveVehicle(existing.id, input.vrm, input.vehicle_make_model, input.vehicle_engine);
-    return getCustomer(existing.id);
+    const vehicle = upsertVehicleForCustomer(existing.id, input.vrm, input.vehicle_make_model, input.vehicle_engine);
+    return { customer: getCustomer(existing.id), vehicle };
   }
 
   const id = nextId('CUS');
@@ -183,8 +139,8 @@ export function upsertCustomerFromBooking(input: {
        VALUES (?, ?, ?, ?, ?, ?, '')`,
     )
     .run(id, now, now, input.name, input.phone, input.email ?? '');
-  saveVehicle(id, input.vrm, input.vehicle_make_model, input.vehicle_engine);
-  return getCustomer(id);
+  const vehicle = upsertVehicleForCustomer(id, input.vrm, input.vehicle_make_model, input.vehicle_engine);
+  return { customer: getCustomer(id), vehicle };
 }
 
 export function backfillCustomersFromBookings() {
@@ -199,7 +155,7 @@ export function backfillCustomersFromBookings() {
     .all() as Record<string, unknown>[];
 
   for (const row of rows) {
-    const customer = upsertCustomerFromBooking({
+    const { customer, vehicle } = upsertCustomerFromBooking({
       name: String(row.customer_name),
       phone: String(row.customer_phone),
       email: String(row.customer_email ?? ''),
@@ -208,7 +164,9 @@ export function backfillCustomersFromBookings() {
       vehicle_engine: String(row.vehicle_engine ?? ''),
     });
     if (customer) {
-      getDb().prepare('UPDATE bookings SET customer_id = ? WHERE id = ?').run(customer.id, String(row.id));
+      getDb()
+        .prepare('UPDATE bookings SET customer_id = ?, vehicle_id = ? WHERE id = ?')
+        .run(customer.id, vehicle?.id ?? '', String(row.id));
     }
   }
 }
@@ -218,36 +176,42 @@ export function searchCustomers(query: string) {
   const trimmed = query.trim();
   const like = `%${trimmed.replace(/\s+/g, '%')}%`;
   const compact = `%${trimmed.toUpperCase().replace(/[^A-Z0-9+]/g, '')}%`;
+  const vrmsSelect = `COALESCE((SELECT GROUP_CONCAT(v.vrm, ', ') FROM customer_vehicle_links l INNER JOIN vehicles v ON v.id = l.vehicle_id WHERE l.customer_id = c.id), '')`;
 
   const sql = trimmed
     ? `SELECT c.*,
          (SELECT COUNT(*) FROM bookings b WHERE b.customer_id = c.id AND b.status != 'blocked') AS visit_count,
-         COALESCE((SELECT GROUP_CONCAT(v.vrm, ', ') FROM customer_vehicles v WHERE v.customer_id = c.id), '') AS vrms
+         ${vrmsSelect} AS vrms
        FROM customers c
        WHERE c.name LIKE ? COLLATE NOCASE
           OR c.phone LIKE ?
           OR c.email LIKE ? COLLATE NOCASE
           OR c.profile_notes LIKE ? COLLATE NOCASE
           OR EXISTS (
-            SELECT 1 FROM customer_vehicles v
-            WHERE v.customer_id = c.id AND (v.vrm LIKE ? OR v.make_model LIKE ? COLLATE NOCASE)
+            SELECT 1 FROM customer_vehicle_links l
+            INNER JOIN vehicles v ON v.id = l.vehicle_id
+            WHERE l.customer_id = c.id AND (v.vrm LIKE ? OR v.make_model LIKE ? COLLATE NOCASE)
           )
           OR EXISTS (
             SELECT 1 FROM customer_notes n
             WHERE n.customer_id = c.id AND n.body LIKE ? COLLATE NOCASE
           )
+          OR EXISTS (
+            SELECT 1 FROM jobs j
+            WHERE j.customer_id = c.id AND (j.description LIKE ? COLLATE NOCASE OR j.invoice_ref LIKE ? COLLATE NOCASE)
+          )
        ORDER BY c.updated_at DESC
        LIMIT 75`
     : `SELECT c.*,
          (SELECT COUNT(*) FROM bookings b WHERE b.customer_id = c.id AND b.status != 'blocked') AS visit_count,
-         COALESCE((SELECT GROUP_CONCAT(v.vrm, ', ') FROM customer_vehicles v WHERE v.customer_id = c.id), '') AS vrms
+         ${vrmsSelect} AS vrms
        FROM customers c
        ORDER BY c.updated_at DESC
        LIMIT 75`;
 
   const rows = (
     trimmed
-      ? getDb().prepare(sql).all(like, like, like, like, compact, like, like)
+      ? getDb().prepare(sql).all(like, like, like, like, compact, like, like, like, like)
       : getDb().prepare(sql).all()
   ) as Record<string, unknown>[];
 
@@ -262,7 +226,7 @@ export function createCustomer(input: { name: string; phone: string; email?: str
   const now = new Date().toISOString();
   const existing = findCustomerByPhone(input.phone) || findCustomerByEmail(input.email ?? '') || findCustomerByVrm(input.vrm ?? '');
   if (existing) {
-    if (input.vrm) saveVehicle(existing.id, input.vrm);
+    if (input.vrm) upsertVehicleForCustomer(existing.id, input.vrm);
     if (input.profile_notes) {
       getDb()
         .prepare('UPDATE customers SET profile_notes = CASE WHEN length(profile_notes) = 0 THEN ? ELSE profile_notes END, updated_at = ? WHERE id = ?')
@@ -277,7 +241,7 @@ export function createCustomer(input: { name: string; phone: string; email?: str
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(id, now, now, input.name, input.phone, input.email ?? '', input.profile_notes ?? '');
-  if (input.vrm) saveVehicle(id, input.vrm);
+  if (input.vrm) upsertVehicleForCustomer(id, input.vrm);
   return getCustomer(id)!;
 }
 
@@ -306,8 +270,9 @@ export function addCustomerNote(customerId: string, body: string) {
 }
 
 export function addCustomerVehicle(customerId: string, vrm: string, makeModel = '') {
-  saveVehicle(customerId, vrm, makeModel);
+  const vehicle = upsertVehicleForCustomer(customerId, vrm, makeModel);
   getDb().prepare('UPDATE customers SET updated_at = ? WHERE id = ?').run(new Date().toISOString(), customerId);
+  return vehicle;
 }
 
 export function formatNoteTime(iso: string) {

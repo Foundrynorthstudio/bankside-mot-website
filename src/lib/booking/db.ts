@@ -1,4 +1,5 @@
 import { randomInt } from 'node:crypto';
+import { diaryById, diaryForService, parseDiaryId } from './config';
 import { upsertCustomerFromBooking } from './customers';
 import { getDb } from './database';
 import type { Booking, BookingInput, BookingStatus } from './types';
@@ -34,23 +35,39 @@ function mapRow(row: Record<string, unknown>): Booking {
     payment_method: String(row.payment_method ?? 'Pay at Garage'),
     notes: String(row.notes ?? ''),
     customer_id: String(row.customer_id ?? ''),
+    vehicle_id: String(row.vehicle_id ?? ''),
+    diary: String(row.diary ?? 'mot'),
+    resource: String(row.resource ?? 'bay'),
   };
 }
 
-export function listBookingsBetween(startDate: string, endDate: string) {
-  const rows = getDb()
-    .prepare(
-      `SELECT * FROM bookings
-       WHERE date >= ? AND date <= ?
-       AND status IN ('confirmed', 'blocked', 'completed')
-       ORDER BY date ASC, time ASC`,
-    )
-    .all(startDate, endDate) as Record<string, unknown>[];
+export function listBookingsBetween(startDate: string, endDate: string, diary?: string) {
+  const database = getDb();
+  const rows = (
+    diary
+      ? database
+          .prepare(
+            `SELECT * FROM bookings
+             WHERE date >= ? AND date <= ?
+               AND diary = ?
+               AND status IN ('confirmed', 'blocked', 'completed')
+             ORDER BY date ASC, time ASC`,
+          )
+          .all(startDate, endDate, diary)
+      : database
+          .prepare(
+            `SELECT * FROM bookings
+             WHERE date >= ? AND date <= ?
+               AND status IN ('confirmed', 'blocked', 'completed')
+             ORDER BY date ASC, time ASC`,
+          )
+          .all(startDate, endDate)
+  ) as Record<string, unknown>[];
   return rows.map(mapRow);
 }
 
-export function listBookingsOnDate(date: string) {
-  return listBookingsBetween(date, date);
+export function listBookingsOnDate(date: string, diary?: string) {
+  return listBookingsBetween(date, date, diary);
 }
 
 export function getBooking(id: string) {
@@ -58,11 +75,20 @@ export function getBooking(id: string) {
   return row ? mapRow(row) : null;
 }
 
+function resourceCandidates(input: BookingInput) {
+  const diaryId = parseDiaryId(input.diary || diaryForService(input.service));
+  const diary = diaryById(diaryId);
+  if (input.resource && diary.resources.some((resource) => resource.id === input.resource)) {
+    return { diaryId, resources: [input.resource] };
+  }
+  return { diaryId, resources: diary.resources.map((resource) => resource.id) };
+}
+
 export function createBooking(input: BookingInput): Booking {
   const now = new Date().toISOString();
   const isBlocked = (input.status ?? 'confirmed') === 'blocked' || input.vrm === 'BLOCKED';
-  const customer = isBlocked
-    ? null
+  const linked = isBlocked
+    ? { customer: null, vehicle: null }
     : upsertCustomerFromBooking({
         name: input.customer_name,
         phone: input.customer_phone,
@@ -71,52 +97,58 @@ export function createBooking(input: BookingInput): Booking {
         vehicle_make_model: input.vehicle_make_model,
         vehicle_engine: input.vehicle_engine,
       });
+  const { diaryId, resources } = resourceCandidates(input);
   const database = getDb();
   const insert = database.prepare(`
     INSERT INTO bookings (
       id, created_at, updated_at, status, source, service, price, date, time,
-      vrm, vehicle_make_model, vehicle_engine, customer_name, customer_phone,
-      customer_email, payment_method, notes, customer_id
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      diary, resource, vrm, vehicle_make_model, vehicle_engine, customer_name, customer_phone,
+      customer_email, payment_method, notes, customer_id, vehicle_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
-  for (let attempt = 0; attempt < 8; attempt += 1) {
-    const id = nextRef();
-    try {
-      insert.run(
-        id,
-        now,
-        now,
-        input.status ?? 'confirmed',
-        input.source ?? 'online',
-        input.service,
-        input.price,
-        input.date,
-        input.time,
-        input.vrm,
-        input.vehicle_make_model ?? '',
-        input.vehicle_engine ?? '',
-        input.customer_name,
-        input.customer_phone,
-        input.customer_email ?? '',
-        input.payment_method ?? 'Pay at Garage',
-        input.notes ?? '',
-        customer?.id ?? '',
-      );
-      return getBooking(id)!;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (message.includes('UNIQUE') || message.includes('unique')) {
-        throw new SlotTakenError();
+  for (const resource of resources) {
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const id = nextRef();
+      try {
+        insert.run(
+          id,
+          now,
+          now,
+          input.status ?? 'confirmed',
+          input.source ?? 'online',
+          input.service,
+          input.price,
+          input.date,
+          input.time,
+          diaryId,
+          resource,
+          input.vrm,
+          input.vehicle_make_model ?? '',
+          input.vehicle_engine ?? '',
+          input.customer_name,
+          input.customer_phone,
+          input.customer_email ?? '',
+          input.payment_method ?? 'Pay at Garage',
+          input.notes ?? '',
+          linked.customer?.id ?? '',
+          linked.vehicle?.id ?? '',
+        );
+        return getBooking(id)!;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (message.includes('UNIQUE constraint failed: bookings.id') || message.includes('PRIMARY')) {
+          continue;
+        }
+        if (message.includes('UNIQUE') || message.includes('unique')) {
+          break;
+        }
+        throw error;
       }
-      if (message.includes('PRIMARY') || message.includes('UNIQUE constraint failed: bookings.id')) {
-        continue;
-      }
-      throw error;
     }
   }
 
-  throw new Error('Could not allocate a booking reference.');
+  throw new SlotTakenError();
 }
 
 export function updateBookingStatus(id: string, status: BookingStatus) {
