@@ -9,7 +9,7 @@ import { business } from '../data/site';
 
 <Layout
   title="MOT Centre Falkirk | Directions to Castlelaurie | Bankside MOT & Repair"
-  description="Visit Bankside MOT & Repair at Unit 1b, Castlelaurie Industrial Estate, Falkirk FK2 7XJ. Call 01324 613007. Open Monday to Friday, 8:30am–5:00pm."
+  description={`Visit Bankside MOT & Repair at ${business.streetAddress}, Falkirk ${business.postalCode}. Call ${business.telephoneDisplay}. ${business.openingHoursDisplay}. Saturday ${business.saturdayDisplay.toLowerCase()}.`}
   breadcrumbs={[
     { name: 'Home', path: '/' },
     { name: 'Contact', path: '/contact' },
@@ -47,7 +47,7 @@ import { business } from '../data/site';
               <i class="fa-solid fa-phone text-base text-brand-600"></i>
               <div>
                 <div class="text-sm font-bold text-slate-900">Reception Phone Line</div>
-                <a href="tel:01324613007" class="text-sm font-bold text-brand-600 hover:underline">01324 613007</a>
+                <a href={`tel:${business.telephone}`} class="text-sm font-bold text-brand-600 hover:underline">{business.telephoneDisplay}</a>
               </div>
             </div>
 
@@ -57,15 +57,15 @@ import { business } from '../data/site';
                 <div class="mb-1 text-sm font-bold text-slate-900">Opening Hours</div>
                 <div class="flex justify-between border-b border-slate-200/60 py-0.5">
                   <span>Monday – Friday:</span>
-                  <span class="font-semibold text-slate-900">8:30 AM – 5:00 PM</span>
+                  <span class="font-semibold text-slate-900">8:30am – 5:00pm</span>
                 </div>
                 <div class="flex justify-between border-b border-slate-200/60 py-0.5">
                   <span>Saturday:</span>
-                  <span class="text-slate-500">By Appointment</span>
+                  <span class="text-slate-500">{business.saturdayDisplay}</span>
                 </div>
                 <div class="flex justify-between py-0.5">
                   <span>Sunday:</span>
-                  <span class="text-slate-500">Closed</span>
+                  <span class="text-slate-500">{business.sundayDisplay}</span>
                 </div>
               </div>
             </div>

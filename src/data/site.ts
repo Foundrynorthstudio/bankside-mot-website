@@ -23,10 +23,17 @@ export const business = {
   mapsUrl: 'https://maps.google.com/?cid=1414482120106289820',
   mapsEmbed:
     'https://maps.google.com/maps?q=Bankside+MOT+%26+Repair+Unit+1b+Castlelaurie+Industrial+Estate+Falkirk+FK2+7XJ&z=16&output=embed',
+  googleListingUrl: 'https://maps.google.com/?cid=1414482120106289820',
+  sameAs: ['https://maps.google.com/?cid=1414482120106289820'] as const,
   openingHours: [
     { days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'], opens: '08:30', closes: '17:00' },
   ],
   openingHoursDisplay: 'Monday to Friday, 8:30am – 5:00pm',
+  openingHoursShort: 'Mon–Fri: 8:30am – 5:00pm',
+  saturdayDisplay: 'By appointment',
+  sundayDisplay: 'Closed',
+  googleRating: 4.9,
+  googleReviewCount: 67,
   areaServed: ['Falkirk', 'Grangemouth', 'Larbert', 'Polmont', 'Stenhousemuir', 'Denny'],
   services: [
     { name: 'Class 4 MOT', description: 'DVSA MOT test for cars, small vans and taxis up to 3,000kg.' },

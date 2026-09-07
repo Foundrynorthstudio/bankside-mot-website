@@ -8,16 +8,42 @@ interface Props {
   brief: string;
   alt?: string;
   class?: string;
+  eager?: boolean;
+  width?: number;
+  height?: number;
 }
 
-const { src, label, brief, alt = label, class: className = '' } = Astro.props;
+const {
+  src,
+  label,
+  brief,
+  alt = label,
+  class: className = '',
+  eager = false,
+  width = 1024,
+  height = 768,
+} = Astro.props;
 const filename = src.split('/').pop() ?? src;
 const hasImage = existsSync(resolve(process.cwd(), `public${src}`));
+const webpSrc = src.replace(/\.jpe?g$/i, '.webp');
+const hasWebp = hasImage && webpSrc !== src && existsSync(resolve(process.cwd(), `public${webpSrc}`));
 ---
 
 <div class:list={['image-slot relative isolate overflow-hidden bg-slate-900', className]}>
   {hasImage ? (
-    <img src={src} alt={alt} class="absolute inset-0 h-full w-full object-cover" />
+    <picture>
+      {hasWebp && <source type="image/webp" srcset={webpSrc} />}
+      <img
+        src={src}
+        alt={alt}
+        width={width}
+        height={height}
+        loading={eager ? 'eager' : 'lazy'}
+        decoding={eager ? 'sync' : 'async'}
+        fetchpriority={eager ? 'high' : 'auto'}
+        class="absolute inset-0 h-full w-full object-cover"
+      />
+    </picture>
   ) : (
     <div class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[radial-gradient(ellipse_at_center,_#1e293b_0%,_#0f172a_70%)] px-4 py-6 text-center">
       <div class="pointer-events-none absolute inset-3 border border-white/10">

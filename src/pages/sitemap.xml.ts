@@ -5,7 +5,10 @@ export const prerender = true;
 
 const pages = [
   { path: '/', priority: '1.0', changefreq: 'weekly' },
+  { path: '/mot-falkirk', priority: '0.95', changefreq: 'weekly' },
+  { path: '/book', priority: '0.95', changefreq: 'weekly' },
   { path: '/services', priority: '0.9', changefreq: 'weekly' },
+  { path: '/discs-and-pads', priority: '0.9', changefreq: 'weekly' },
   { path: '/contact', priority: '0.9', changefreq: 'weekly' },
   { path: '/about', priority: '0.8', changefreq: 'monthly' },
   { path: '/areas', priority: '0.8', changefreq: 'monthly' },

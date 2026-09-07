@@ -1,0 +1,81 @@
+---
+export const prerender = true;
+
+import Layout from '../layouts/Layout.astro';
+import ImageSlot from '../components/ImageSlot.astro';
+import FaqList from '../components/FaqList.astro';
+import { photos } from '../data/photos';
+import { serviceFaqs } from '../data/faqs';
+import { business, SITE_URL } from '../data/site';
+
+const faqs = serviceFaqs.filter((faq) =>
+  ['How long does an MOT take?', 'Do you offer a free retest if the car fails?', 'Can I book an MOT online?'].includes(faq.question),
+);
+---
+
+<Layout
+  title="Class 4 MOT Falkirk £50 | Book Online | Bankside MOT & Repair"
+  description="Book a DVSA Class 4 MOT in Falkirk for £50. 45-minute slots from 8:30am at Castlelaurie Industrial Estate. Wait in reception or drop the car. Call 01324 613007."
+  breadcrumbs={[
+    { name: 'Home', path: '/' },
+    { name: 'Services', path: '/services' },
+    { name: 'Class 4 MOT Falkirk', path: '/mot-falkirk' },
+  ]}
+  faqs={faqs}
+  extraJsonLd={[
+    {
+      '@type': 'Service',
+      name: 'Class 4 MOT',
+      serviceType: 'MOT test',
+      provider: { '@id': `${SITE_URL}/#business` },
+      areaServed: business.areaServed.map((name) => ({ '@type': 'City', name })),
+      offers: {
+        '@type': 'Offer',
+        price: '50.00',
+        priceCurrency: 'GBP',
+        url: `${SITE_URL}/book`,
+        availability: 'https://schema.org/InStock',
+      },
+    },
+  ]}
+>
+  <div class="bg-slate-50 py-12">
+    <div class="container mx-auto px-4">
+      <section class="mb-10 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div class="grid lg:grid-cols-12 lg:items-stretch">
+          <div class="lg:col-span-6">
+            <ImageSlot
+              src={photos.serviceMot.src}
+              label={photos.serviceMot.label}
+              brief={photos.serviceMot.brief}
+              alt="MOT tools board and emissions tester at Bankside MOT & Repair, Falkirk"
+              eager
+              class="aspect-[16/10] h-full min-h-[240px] w-full lg:rounded-none"
+            />
+          </div>
+          <div class="flex flex-col justify-center space-y-4 p-6 sm:p-8 lg:col-span-6">
+            <span class="w-fit rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-xs font-semibold tracking-wider text-brand-600 uppercase">DVSA Class 4 · Falkirk</span>
+            <h1 class="text-3xl font-extrabold text-slate-900 sm:text-4xl">Class 4 MOT in Falkirk — £50</h1>
+            <p class="text-sm leading-relaxed text-slate-600 sm:text-base">
+              Official DVSA test for cars, small vans and taxis up to 3,000kg. Book a 45-minute slot online, from 8:30am with the last booking at 4:00pm. Wait in reception or drop the keys.
+            </p>
+            <div class="text-3xl font-extrabold text-slate-900">£50<span class="text-sm font-normal text-slate-500"> fixed, VAT included</span></div>
+            <ul class="space-y-2 text-sm text-slate-600">
+              <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Booked in the workshop diary — that slot is yours</li>
+              <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Free retest if left with us (within 10 working days)</li>
+              <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> {business.streetAddress}, {business.postalCode}</li>
+              <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> {business.openingHoursDisplay}</li>
+            </ul>
+            <div class="flex flex-col gap-2 sm:flex-row">
+              <a href="/book" class="inline-flex flex-1 items-center justify-center rounded-xl bg-brand-600 px-4 py-3 text-xs font-semibold text-white transition hover:bg-brand-700">Book Class 4 MOT</a>
+              <a href={`tel:${business.telephone}`} class="inline-flex flex-1 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-semibold text-slate-900 transition hover:bg-slate-50">Call {business.telephoneDisplay}</a>
+            </div>
+            <p class="text-xs text-slate-500">Retests cannot be booked online — phone the office. Class 7 is trade-only.</p>
+          </div>
+        </div>
+      </section>
+
+      <FaqList items={faqs} />
+    </div>
+  </div>
+</Layout>

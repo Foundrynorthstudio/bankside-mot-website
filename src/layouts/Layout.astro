@@ -5,6 +5,7 @@ import Footer from '../components/Footer.astro';
 import BookingModal from '../components/BookingModal.astro';
 import MobileActionBar from '../components/MobileActionBar.astro';
 import Breadcrumbs from '../components/Breadcrumbs.astro';
+import Analytics from '../components/Analytics.astro';
 import { business, canonicalPath, defaultDescription, defaultTitle } from '../data/site';
 import { pageJsonLd } from '../lib/seo';
 
@@ -12,7 +13,8 @@ interface Props {
   title?: string;
   description?: string;
   breadcrumbs?: { name: string; path: string }[];
-  faqs?: { question: string; answer: string }[];
+  faqs?: { question: string; answer: string; link?: { href: string; label: string } }[];
+  extraJsonLd?: Record<string, unknown>[];
   noindex?: boolean;
 }
 
@@ -21,6 +23,7 @@ const {
   description = defaultDescription,
   breadcrumbs = [],
   faqs = [],
+  extraJsonLd = [],
   noindex = false,
 } = Astro.props;
 
@@ -34,6 +37,7 @@ const schema = pageJsonLd({
   path,
   breadcrumbs,
   faqs,
+  extra: extraJsonLd,
 });
 const crumbItems = breadcrumbs.map((crumb, index) => ({
   label: crumb.name,
@@ -78,13 +82,15 @@ const crumbItems = breadcrumbs.map((crumb, index) => ({
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImage} />
 
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'" />
+    <noscript>
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    </noscript>
 
     <script type="application/ld+json" set:html={JSON.stringify(schema)} />
+    <Analytics />
   </head>
   <body
     class="bg-white text-slate-800 font-sans antialiased selection:bg-brand-500 selection:text-white min-h-screen flex flex-col"

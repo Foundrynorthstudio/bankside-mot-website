@@ -1,0 +1,25 @@
+---
+import { analyticsConfig, analyticsEnabled } from '../lib/analytics';
+
+const config = analyticsConfig();
+const enabled = analyticsEnabled(config);
+---
+
+<script is:inline define:vars={{ config }}>
+  window.dataLayer = window.dataLayer || [];
+  window.gtag = window.gtag || function gtag() {
+    window.dataLayer.push(arguments);
+  };
+  window.__BANKSIDE_ANALYTICS = config;
+</script>
+
+{enabled && (
+  <>
+    <script is:inline src={`https://www.googletagmanager.com/gtag/js?id=${config.gaId || config.adsId}`} async></script>
+    <script is:inline define:vars={{ config }}>
+      window.gtag('js', new Date());
+      if (config.gaId) window.gtag('config', config.gaId);
+      if (config.adsId) window.gtag('config', config.adsId);
+    </script>
+  </>
+)}

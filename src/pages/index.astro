@@ -6,6 +6,7 @@ import ImageSlot from '../components/ImageSlot.astro';
 import ReviewSlot from '../components/ReviewSlot.astro';
 import { photoExists, photos } from '../data/photos';
 import { reviews } from '../data/reviews';
+import { business } from '../data/site';
 
 const hasHeroPhoto = photoExists(photos.heroWorkshop.src);
 const hasTeamBandPhoto = photoExists(photos.teamBand.src);
@@ -19,6 +20,7 @@ const hasTeamBandPhoto = photoExists(photos.teamBand.src);
         label={photos.heroWorkshop.label}
         brief={photos.heroWorkshop.brief}
         alt="Bankside MOT & Repair workshop bay in Falkirk"
+        eager
         class="h-full w-full"
       />
     </div>
@@ -29,7 +31,7 @@ const hasTeamBandPhoto = photoExists(photos.teamBand.src);
         <div class="space-y-6 text-center lg:col-span-7 lg:text-left">
           <div class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 text-xs font-semibold text-emerald-200">
             <i class="fa-solid fa-circle-check text-brand-500"></i>
-            <span>Falkirk’s Award-Winning Independent MOT & Repair Garage</span>
+            <span>Independent DVSA-approved MOT &amp; Repair garage in Falkirk</span>
           </div>
 
           <h1 class="text-4xl font-extrabold leading-[1.1] tracking-tight text-white sm:text-5xl lg:text-6xl">
@@ -57,8 +59,8 @@ const hasTeamBandPhoto = photoExists(photos.teamBand.src);
                 <i class="fa-solid fa-star"></i>
               </div>
               <div class="text-left">
-                <div class="text-xs font-bold text-slate-900">4.9 / 5.0 Rated</div>
-                <div class="text-[11px] text-slate-500">67+ Verified Google Reviews</div>
+                <div class="text-xs font-bold text-slate-900">{business.googleRating} / 5.0 on Google</div>
+                <div class="text-[11px] text-slate-500">{business.googleReviewCount}+ Google reviews</div>
               </div>
             </div>
           </div>
@@ -169,11 +171,11 @@ const hasTeamBandPhoto = photoExists(photos.teamBand.src);
           />
           <div class="flex flex-1 flex-col justify-between p-6">
             <div class="space-y-3">
-              <h3 class="text-xl font-bold text-slate-900">Class 4 MOT</h3>
+              <h3 class="text-xl font-bold text-slate-900"><a href="/mot-falkirk" class="hover:text-brand-700">Class 4 MOT</a></h3>
               <p class="text-sm leading-relaxed text-slate-600">Official DVSA inspection for cars, small vans and taxis. Most of our MOT customers book this test. If the car fails, phone the office to book a retest — that is not available online.</p>
               <div class="text-lg font-extrabold text-slate-900">£50</div>
             </div>
-            <button type="button" @click="quickBook('Class 4 MOT', 50)" class="mt-6 w-full rounded-xl bg-slate-900 py-2.5 text-xs font-semibold text-white transition hover:bg-slate-800">Book MOT Test Slot</button>
+            <a href="/book" class="mt-6 w-full rounded-xl bg-slate-900 py-2.5 text-xs font-semibold text-white transition hover:bg-slate-800 text-center">Book MOT Test Slot</a>
           </div>
         </div>
 
@@ -204,11 +206,11 @@ const hasTeamBandPhoto = photoExists(photos.teamBand.src);
           />
           <div class="flex flex-1 flex-col justify-between p-6">
             <div class="space-y-3">
-              <h3 class="text-xl font-bold text-slate-900">Diagnostics & Brakes</h3>
+              <h3 class="text-xl font-bold text-slate-900"><a href="/discs-and-pads" class="hover:text-brand-700">Diagnostics & Brakes</a></h3>
               <p class="text-sm leading-relaxed text-slate-600">Dealer-level diagnostic software for warning lights, ABS, airbag, DPF regeneration, and complete brake disc & pad replacements. Scan price depends on the vehicle and the job.</p>
               <div class="text-lg font-extrabold text-slate-900">Computer Scan: from £45</div>
             </div>
-            <a href="tel:01324613007" class="mt-6 w-full rounded-xl bg-slate-900 py-2.5 text-xs font-semibold text-white transition hover:bg-slate-800 text-center">Call to book</a>
+            <a href={`tel:${business.telephone}`} class="mt-6 w-full rounded-xl bg-slate-900 py-2.5 text-xs font-semibold text-white transition hover:bg-slate-800 text-center">Call to book</a>
           </div>
         </div>
       </div>
@@ -255,17 +257,29 @@ const hasTeamBandPhoto = photoExists(photos.teamBand.src);
       <div class="mb-10 flex flex-col justify-between gap-3 md:flex-row md:items-end">
         <div>
           <span class="rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-xs font-semibold tracking-wider text-brand-600 uppercase">From Google</span>
-          <h2 class="mt-2 text-2xl font-extrabold text-slate-900 sm:text-3xl">What Falkirk Drivers Say</h2>
-          <p class="mt-1 text-sm text-slate-600">Replace these slots with 2–3 short quotes from your 67+ Google reviews.</p>
+          <h2 class="mt-2 text-2xl font-extrabold text-slate-900 sm:text-3xl">What Falkirk drivers say</h2>
+          <p class="mt-1 text-sm text-slate-600">Rated {business.googleRating} / 5 from {business.googleReviewCount}+ Google reviews.</p>
         </div>
-        <div class="text-sm font-semibold text-slate-900">4.9 / 5.0 · 67+ reviews</div>
+        <a href={business.googleListingUrl} target="_blank" rel="noopener noreferrer" class="text-sm font-semibold text-brand-600 hover:text-brand-700">
+          Read reviews on Google
+        </a>
       </div>
 
-      <div class="grid gap-6 md:grid-cols-3">
-        {reviews.map((review) => (
-          <ReviewSlot prompt={review.prompt} quote={review.quote} name={review.name} place={review.place} />
-        ))}
-      </div>
+      {reviews.some((review) => review.quote && review.name) ? (
+        <div class="grid gap-6 md:grid-cols-3">
+          {reviews.filter((review) => review.quote && review.name).map((review) => (
+            <ReviewSlot prompt={review.prompt} quote={review.quote} name={review.name} place={review.place} />
+          ))}
+        </div>
+      ) : (
+        <div class="rounded-2xl border border-slate-200 bg-white p-6 sm:flex sm:items-center sm:justify-between">
+          <p class="text-sm text-slate-600">See recent MOT and repair reviews on the Google listing, or leave one after your visit.</p>
+          <div class="mt-4 flex flex-wrap gap-2 sm:mt-0">
+            <a href={business.googleListingUrl} target="_blank" rel="noopener noreferrer" class="rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-slate-800">Google reviews</a>
+            <a href="/contact" class="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-900 transition hover:bg-slate-50">Find the workshop</a>
+          </div>
+        </div>
+      )}
     </div>
   </section>
 </Layout>

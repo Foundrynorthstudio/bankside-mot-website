@@ -32,9 +32,14 @@ def blur_box(im: Image.Image, box: tuple[int, int, int, int], radius: int = 14) 
 
 def save(im: Image.Image, name: str) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
+    rgb = im.convert("RGB")
     path = OUT / name
-    im.convert("RGB").save(path, "JPEG", quality=84, optimize=True, progressive=True)
+    rgb.save(path, "JPEG", quality=84, optimize=True, progressive=True)
     print(f"wrote {path} ({im.width}x{im.height})")
+    if name.lower().endswith((".jpg", ".jpeg")):
+        webp = path.with_suffix(".webp")
+        rgb.save(webp, "WEBP", quality=78, method=6)
+        print(f"wrote {webp}")
 
 
 def load(prefix: str) -> Image.Image:

@@ -1,51 +1,35 @@
 import Alpine from 'alpinejs';
 import { serviceByName } from '../lib/booking/config';
 
-type Town = {
-  name: string;
-  postcode: string;
-  driveTime: string;
-  description: string;
-};
+function trackConversion(event: 'phone' | 'booking' | 'lead', value?: number) {
+  const config = window.__BANKSIDE_ANALYTICS;
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({ event: `bankside_${event}`, value });
 
-const townList: Town[] = [
-  {
-    name: 'Falkirk',
-    postcode: 'FK1 / FK2',
-    driveTime: '2-5 Mins',
-    description: 'Located directly at Castlelaurie Industrial Estate, convenient for central Falkirk drivers.',
-  },
-  {
-    name: 'Grangemouth',
-    postcode: 'FK3',
-    driveTime: '8 Mins',
-    description: 'Fast access via the A904 / A9 for Grangemouth drivers needing a Class 4 MOT or a service.',
-  },
-  {
-    name: 'Larbert',
-    postcode: 'FK5',
-    driveTime: '7 Mins',
-    description: 'Straightforward drive across Bellsdyke / Main Street. Drop your car off before work!',
-  },
-  {
-    name: 'Polmont',
-    postcode: 'FK2',
-    driveTime: '10 Mins',
-    description: 'Quick access along the A9 for Polmont and Brightons motorists.',
-  },
-  {
-    name: 'Stenhousemuir',
-    postcode: 'FK5',
-    driveTime: '6 Mins',
-    description: 'Just minutes away from Stenhousemuir shopping centre.',
-  },
-  {
-    name: 'Denny',
-    postcode: 'FK6',
-    driveTime: '12 Mins',
-    description: 'Easy commute down the M876 / A9 for honest local vehicle repairs.',
-  },
-];
+  if (typeof window.gtag !== 'function' || !config) return;
+
+  if (event === 'phone') {
+    window.gtag('event', 'phone_click', { event_category: 'engagement' });
+    if (config.adsId && config.phoneLabel) {
+      window.gtag('event', 'conversion', { send_to: `${config.adsId}/${config.phoneLabel}` });
+    }
+    return;
+  }
+
+  if (event === 'booking') {
+    window.gtag('event', 'generate_lead', { currency: 'GBP', value: value ?? 50 });
+    if (config.adsId && config.bookingLabel) {
+      window.gtag('event', 'conversion', {
+        send_to: `${config.adsId}/${config.bookingLabel}`,
+        value: value ?? 50,
+        currency: 'GBP',
+      });
+    }
+    return;
+  }
+
+  window.gtag('event', 'generate_lead', { event_category: 'contact' });
+}
 
 function londonISO(date = new Date()) {
   return new Intl.DateTimeFormat('en-CA', {
@@ -85,9 +69,6 @@ Alpine.data('banksideApp', () => ({
   },
 
   financeAmount: 300,
-
-  townList,
-  selectedTown: townList[0],
 
   contactForm: { name: '', phone: '', message: '' },
   contactSent: false,
@@ -149,6 +130,7 @@ Alpine.data('banksideApp', () => ({
   submitContactForm() {
     if (this.contactForm.name && this.contactForm.phone) {
       this.contactSent = true;
+      trackConversion('lead');
       setTimeout(() => {
         this.contactForm = { name: '', phone: '', message: '' };
         this.contactSent = false;
@@ -196,6 +178,7 @@ Alpine.data('banksideApp', () => ({
         this.bookingRef = data.ref;
         this.emailSent = Boolean(data.emailSent);
         this.bookingStep = 4;
+        trackConversion('booking', this.servicePrice);
         if (Array.isArray(data.slots)) this.availableSlots = data.slots;
       })
       .catch((error: Error) => {
@@ -245,5 +228,12 @@ Alpine.data('banksideApp', () => ({
     this.bookingStep = 3;
   },
 }));
+
+document.addEventListener('click', (event) => {
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  const link = target.closest('a[href^="tel:"]');
+  if (link) trackConversion('phone');
+});
 
 Alpine.start();

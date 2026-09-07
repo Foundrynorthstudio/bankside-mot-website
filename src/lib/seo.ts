@@ -7,6 +7,7 @@ type JsonLdProps = {
   path: string;
   breadcrumbs?: { name: string; path: string }[];
   faqs?: { question: string; answer: string; link?: { href: string; label: string } }[];
+  extra?: Record<string, unknown>[];
 };
 
 export function businessJsonLd() {
@@ -20,7 +21,13 @@ export function businessJsonLd() {
     description: business.description,
     url: SITE_URL,
     telephone: business.telephone,
-    image: `${SITE_URL}/og-image.png`,
+    email: business.email,
+    image: [
+      `${SITE_URL}/og-image.png`,
+      `${SITE_URL}/images/hero-workshop.jpg`,
+      `${SITE_URL}/images/exterior.jpg`,
+      `${SITE_URL}/images/service-mot.jpg`,
+    ],
     logo: `${SITE_URL}/images/logo.png`,
     priceRange: business.priceRange,
     currenciesAccepted: 'GBP',
@@ -38,7 +45,7 @@ export function businessJsonLd() {
       latitude: business.latitude,
       longitude: business.longitude,
     },
-    hasMap: business.mapsUrl,
+    hasMap: business.googleListingUrl,
     openingHoursSpecification: business.openingHours.map((block) => ({
       '@type': 'OpeningHoursSpecification',
       dayOfWeek: block.days,
@@ -59,11 +66,16 @@ export function businessJsonLd() {
         provider: { '@id': `${SITE_URL}/#business` },
       },
     })),
-    sameAs: [business.mapsUrl],
+    sameAs: [...business.sameAs],
+    potentialAction: {
+      '@type': 'ReserveAction',
+      name: 'Book a Class 4 MOT',
+      target: `${SITE_URL}/book`,
+    },
   };
 }
 
-export function pageJsonLd({ type = 'page', name, description, path, breadcrumbs = [], faqs = [] }: JsonLdProps) {
+export function pageJsonLd({ type = 'page', name, description, path, breadcrumbs = [], faqs = [], extra = [] }: JsonLdProps) {
   const graph: Record<string, unknown>[] = [
     businessJsonLd(),
     {
@@ -124,6 +136,8 @@ export function pageJsonLd({ type = 'page', name, description, path, breadcrumbs
       })),
     });
   }
+
+  graph.push(...extra);
 
   return {
     '@context': 'https://schema.org',

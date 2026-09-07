@@ -31,11 +31,11 @@ import Logo from './Logo.astro';
       <div>
         <div class="text-white font-semibold mb-3 uppercase tracking-wider">Workshop Services</div>
         <ul class="space-y-2 font-medium">
-          <li><a href="/services" class="hover:text-white">General repairs & maintenance</a></li>
-          <li><a href="/services" class="hover:text-white">Interim & Major Servicing</a></li>
-          <li><a href="/services" class="hover:text-white">ECU Computer Diagnostics</a></li>
-          <li><a href="/services" class="hover:text-white">Wheel alignment</a></li>
-          <li><a href="/services" class="hover:text-white">Air-con regassing</a></li>
+          <li><a href="/mot-falkirk" class="hover:text-white">Class 4 MOT Falkirk</a></li>
+          <li><a href="/discs-and-pads" class="hover:text-white">Discs and pads</a></li>
+          <li><a href="/services" class="hover:text-white">Servicing & diagnostics</a></li>
+          <li><a href="/services" class="hover:text-white">Wheel alignment & air-con</a></li>
+          <li><a href="/book" class="hover:text-white">Book MOT online</a></li>
           <li><a href="/finance" class="hover:text-white">0% Payment Assist</a></li>
         </ul>
       </div>
@@ -49,6 +49,8 @@ import Logo from './Logo.astro';
             Direct Tel: <a href={`tel:${business.telephone}`} class="hover:text-brand-400">{business.telephoneDisplay}</a>
           </div>
           <div>{business.openingHoursDisplay}</div>
+          <div>Saturday: {business.saturdayDisplay}</div>
+          <div>Sunday: {business.sundayDisplay}</div>
         </div>
       </div>
     </div>

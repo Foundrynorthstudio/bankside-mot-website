@@ -1,0 +1,94 @@
+---
+export const prerender = true;
+
+import Layout from '../layouts/Layout.astro';
+import ImageSlot from '../components/ImageSlot.astro';
+import FaqList from '../components/FaqList.astro';
+import { photos } from '../data/photos';
+import { business, SITE_URL } from '../data/site';
+
+const faqs = [
+  {
+    question: 'Do you fit discs and pads on all cars?',
+    answer: 'Yes. We fit new discs and pads on all makes and models. The quote is for your vehicle before we start.',
+  },
+  {
+    question: 'Can you do the brakes if the car failed its MOT?',
+    answer: 'Yes. Call the office on 01324 613007. If you leave the car with us, a retest within 10 working days is free where DVSA rules allow it.',
+  },
+];
+---
+
+<Layout
+  title="Brake Discs and Pads Falkirk | All Makes | Bankside MOT & Repair"
+  description="New brake discs and pads fitted on all makes and models in Falkirk. Quoted before work starts. Call 01324 613007. Workshop at Castlelaurie Industrial Estate."
+  breadcrumbs={[
+    { name: 'Home', path: '/' },
+    { name: 'Services', path: '/services' },
+    { name: 'Discs and pads', path: '/discs-and-pads' },
+  ]}
+  faqs={faqs}
+  extraJsonLd={[
+    {
+      '@type': 'Service',
+      name: 'Discs and pads',
+      serviceType: 'Brake disc and pad replacement',
+      provider: { '@id': `${SITE_URL}/#business` },
+      areaServed: business.areaServed.map((name) => ({ '@type': 'City', name })),
+      offers: {
+        '@type': 'Offer',
+        url: `${SITE_URL}/discs-and-pads`,
+        description: 'Quoted for the vehicle before work starts.',
+      },
+    },
+  ]}
+>
+  <div class="bg-slate-50 py-12">
+    <div class="container mx-auto px-4">
+      <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div class="grid sm:grid-cols-2">
+          <div class="relative">
+            <ImageSlot
+              src={photos.brakeBefore.src}
+              label={photos.brakeBefore.label}
+              brief={photos.brakeBefore.brief}
+              alt="Worn rusty brake disc before replacement at Bankside MOT & Repair"
+              eager
+              class="aspect-[4/3] h-full min-h-[200px] w-full"
+            />
+            <span class="pointer-events-none absolute top-3 left-3 z-10 rounded-full bg-slate-950/75 px-2.5 py-1 text-[10px] font-semibold tracking-wider text-white uppercase">Before</span>
+          </div>
+          <div class="relative">
+            <ImageSlot
+              src={photos.brakeAfter.src}
+              label={photos.brakeAfter.label}
+              brief={photos.brakeAfter.brief}
+              alt="New brake discs and pads fitted at Bankside MOT & Repair"
+              eager
+              class="aspect-[4/3] h-full min-h-[200px] w-full"
+            />
+            <span class="pointer-events-none absolute top-3 left-3 z-10 rounded-full bg-slate-950/75 px-2.5 py-1 text-[10px] font-semibold tracking-wider text-white uppercase">After</span>
+          </div>
+        </div>
+        <div class="space-y-4 p-6 sm:p-8">
+          <span class="rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-xs font-semibold tracking-wider text-brand-600 uppercase">All makes and models</span>
+          <h1 class="text-3xl font-extrabold text-slate-900 sm:text-4xl">Discs and pads in Falkirk</h1>
+          <p class="max-w-3xl text-sm leading-relaxed text-slate-600 sm:text-base">
+            We fit new discs and pads on every make and model that comes through the workshop. If the discs are scored or rusty, or the pads are worn, we quote the parts and labour for your vehicle before a wheel comes off.
+          </p>
+          <ul class="grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
+            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Front or rear, all makes and models</li>
+            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Quality discs and pads, quoted first</li>
+            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Common MOT fail — we can repair and retest</li>
+            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Booked by phone so it fits the diary</li>
+          </ul>
+          <div class="flex flex-col gap-2 sm:flex-row sm:max-w-md">
+            <a href={`tel:${business.telephone}`} class="inline-flex flex-1 items-center justify-center rounded-xl bg-brand-600 px-4 py-3 text-xs font-semibold text-white transition hover:bg-brand-700">Call {business.telephoneDisplay}</a>
+            <a href="/services" class="inline-flex flex-1 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-semibold text-slate-900 transition hover:bg-slate-50">All services</a>
+          </div>
+        </div>
+      </section>
+      <FaqList items={faqs} />
+    </div>
+  </div>
+</Layout>

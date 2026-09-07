@@ -1,5 +1,6 @@
 ---
 import Logo from './Logo.astro';
+import { business } from '../data/site';
 
 const path = Astro.url.pathname.replace(/\/$/, '') || '/';
 const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWith(href));
@@ -32,10 +33,10 @@ const mobileNav = [
       <span class="sm:hidden text-slate-300">DVSA Approved MOT Station</span>
     </div>
     <div class="flex items-center space-x-5 text-xs font-semibold">
-      <span class="hidden md:inline text-slate-400"><i class="fa-solid fa-clock text-brand-500 mr-1.5"></i> Mon–Fri: 8:30am – 5:00pm</span>
-      <a href="tel:01324613007" class="text-white hover:text-brand-500 flex items-center gap-1.5 transition">
+      <span class="hidden md:inline text-slate-400"><i class="fa-solid fa-clock text-brand-500 mr-1.5"></i> {business.openingHoursShort}</span>
+      <a href={`tel:${business.telephone}`} class="text-white hover:text-brand-500 flex items-center gap-1.5 transition">
         <i class="fa-solid fa-phone text-brand-500"></i>
-        <span>01324 613007</span>
+        <span>{business.telephoneDisplay}</span>
       </a>
     </div>
   </div>
@@ -65,14 +66,13 @@ const mobileNav = [
     </nav>
 
     <div class="hidden sm:flex items-center gap-3">
-      <button
-        type="button"
-        @click="openBookingModal()"
+      <a
+        href="/book"
         class="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs tracking-wide shadow-sm transition flex items-center gap-2"
       >
         <i class="fa-regular fa-calendar-check text-brand-500"></i>
         <span>Book Online 24/7</span>
-      </button>
+      </a>
     </div>
 
     <button
@@ -93,16 +93,15 @@ const mobileNav = [
     ))}
 
     <div class="pt-3 flex flex-col gap-2">
-      <a href="tel:01324613007" class="w-full text-center py-2.5 rounded-xl bg-slate-100 text-slate-900 font-semibold text-xs border border-slate-200">
-        <i class="fa-solid fa-phone mr-2 text-brand-600"></i> Call Garage (01324 613007)
+      <a href={`tel:${business.telephone}`} class="w-full text-center py-2.5 rounded-xl bg-slate-100 text-slate-900 font-semibold text-xs border border-slate-200">
+        <i class="fa-solid fa-phone mr-2 text-brand-600"></i> Call Garage ({business.telephoneDisplay})
       </a>
-      <button
-        type="button"
-        @click="mobileMenuOpen = false; openBookingModal()"
+      <a
+        href="/book"
         class="w-full text-center py-2.5 rounded-xl bg-brand-600 text-white font-semibold text-xs"
       >
         <i class="fa-solid fa-calendar-check mr-2"></i> Book Online
-      </button>
+      </a>
     </div>
   </div>
 </header>
