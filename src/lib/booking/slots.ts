@@ -1,5 +1,5 @@
-import { diaryById, diaryForService, parseDiaryId, type DiaryId } from './config';
-import { formatSlotRange, isSlotInPast, isWeekday } from './dates';
+import { diaryById, diaryForService, isMorningDropOffService, isMorningDropOffTime, type DiaryId } from './config';
+import { formatBookingSlotLabel, formatSlotRange, isSlotInPast, isWeekday } from './dates';
 import { listBookingsOnDate } from './db';
 
 export function getSlotsForDate(date: string, diaryId: DiaryId = 'mot') {
@@ -27,9 +27,13 @@ export function getSlotsForDate(date: string, diaryId: DiaryId = 'mot') {
 }
 
 export function slotsForService(date: string, serviceName: string) {
-  return getSlotsForDate(date, diaryForService(serviceName));
-}
-
-export function parseDiaryParam(value: string | null | undefined): DiaryId {
-  return parseDiaryId(value);
+  const diaryId = diaryForService(serviceName);
+  const slots = getSlotsForDate(date, diaryId);
+  if (!isMorningDropOffService(serviceName)) return slots;
+  return slots
+    .filter((slot) => isMorningDropOffTime(slot.time))
+    .map((slot) => ({
+      ...slot,
+      label: formatBookingSlotLabel(serviceName, slot.time, diaryId),
+    }));
 }

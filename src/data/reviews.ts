@@ -15,6 +15,6 @@ export const reviews = [
     quote: '',
     name: '',
     place: 'Falkirk',
-    prompt: 'turnaround time, the waiting lounge, or a named technician',
+    prompt: 'turnaround time, reception, or a named technician',
   },
 ] as const;

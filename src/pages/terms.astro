@@ -2,7 +2,7 @@
 export const prerender = true;
 
 import Layout from '../layouts/Layout.astro';
-import { business } from '../data/site';
+import { business, motRetestGuidanceUrl } from '../data/site';
 ---
 
 <Layout
@@ -27,7 +27,9 @@ import { business } from '../data/site';
       </p>
       <h2 class="text-xl font-bold text-slate-900">MOT tests</h2>
       <p>
-        MOT inspections follow DVSA standards. A test result is not a guarantee of future condition. Failed tests that we repair here include a free 10-day retest, subject to DVSA rules.
+        MOT inspections follow DVSA standards. A test result is not a guarantee of future condition. Retests follow DVSA rules: if the vehicle is left with us for repair and retested within 10 working days, the partial retest is free. If it is taken away and returned within 10 working days, a partial retest fee may apply, except that certain items can be retested free of charge if brought back before the end of the next working day. In any other case a full retest and the full fee apply. See the{' '}
+        <a href={motRetestGuidanceUrl} class="font-semibold text-brand-700 underline decoration-brand-200 underline-offset-2 hover:text-brand-800" target="_blank" rel="noopener noreferrer">official MOT retest rules on GOV.UK</a>
+        . Retest slots are arranged by phone with the office on {business.telephoneDisplay} and cannot be booked online.
       </p>
       <h2 class="text-xl font-bold text-slate-900">Payment</h2>
       <p>

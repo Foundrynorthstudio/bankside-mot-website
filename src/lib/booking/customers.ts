@@ -76,30 +76,73 @@ export function listCustomerBookings(customerId: string) {
   }));
 }
 
+function phoneLookupKeys(phone: string) {
+  const trimmed = phone.trim();
+  if (!trimmed) return [];
+  const digits = trimmed.replace(/\D/g, '');
+  const keys = new Set<string>([trimmed]);
+  if (digits) keys.add(digits);
+  if (digits.startsWith('44') && digits.length >= 12) {
+    keys.add(`0${digits.slice(2)}`);
+    keys.add(`+${digits}`);
+  }
+  if (digits.startsWith('0') && digits.length >= 11) {
+    keys.add(`44${digits.slice(1)}`);
+    keys.add(`+44${digits.slice(1)}`);
+  }
+  return [...keys];
+}
+
 export function findCustomerByPhone(phone: string) {
   if (!phone) return null;
-  const row = getDb().prepare('SELECT * FROM customers WHERE phone = ? LIMIT 1').get(phone) as Record<string, unknown> | undefined;
-  return row ? mapCustomer(row) : null;
-}
-
-function findCustomerByEmail(email: string) {
-  if (!email) return null;
-  const row = getDb().prepare('SELECT * FROM customers WHERE email = ? LIMIT 1').get(email) as Record<string, unknown> | undefined;
-  return row ? mapCustomer(row) : null;
-}
-
-function findCustomerByVrm(vrm: string) {
-  if (!vrm || vrm === 'BLOCKED') return null;
-  const row = getDb()
+  const database = getDb();
+  for (const key of phoneLookupKeys(phone)) {
+    const row = database.prepare('SELECT * FROM customers WHERE phone = ? LIMIT 1').get(key) as Record<string, unknown> | undefined;
+    if (row) return mapCustomer(row);
+  }
+  const digits = phone.replace(/\D/g, '');
+  const tail = digits.slice(-10);
+  if (tail.length < 10) return null;
+  const row = database
     .prepare(
-      `SELECT c.* FROM customers c
-       INNER JOIN customer_vehicle_links l ON l.customer_id = c.id
-       INNER JOIN vehicles v ON v.id = l.vehicle_id
-       WHERE v.vrm = ?
+      `SELECT * FROM customers
+       WHERE length(phone) > 0
+         AND substr(replace(replace(replace(replace(replace(phone, '+', ''), ' ', ''), '-', ''), '(', ''), ')', ''), -10) = ?
        LIMIT 1`,
     )
-    .get(vrm) as Record<string, unknown> | undefined;
+    .get(tail) as Record<string, unknown> | undefined;
   return row ? mapCustomer(row) : null;
+}
+
+export function findCustomerByEmail(email: string) {
+  const normalised = email.trim().toLowerCase();
+  if (!normalised) return null;
+  const row = getDb().prepare('SELECT * FROM customers WHERE email = ? COLLATE NOCASE LIMIT 1').get(normalised) as
+    | Record<string, unknown>
+    | undefined;
+  return row ? mapCustomer(row) : null;
+}
+
+export function findCustomerByUniqueName(name: string) {
+  const trimmed = name.trim();
+  if (trimmed.length < 3 || !/\s/.test(trimmed)) return null;
+  const rows = getDb()
+    .prepare('SELECT * FROM customers WHERE name = ? COLLATE NOCASE')
+    .all(trimmed) as Record<string, unknown>[];
+  if (rows.length !== 1) return null;
+  return mapCustomer(rows[0]);
+}
+
+export function findExistingCustomer(input: { id?: string; phone?: string; email?: string; name?: string }) {
+  if (input.id) {
+    const byId = getCustomer(input.id);
+    if (byId) return byId;
+  }
+  return (
+    findCustomerByPhone(input.phone ?? '') ||
+    findCustomerByEmail(input.email ?? '') ||
+    findCustomerByUniqueName(input.name ?? '')
+  );
 }
 
 export function upsertCustomerFromBooking(input: {
@@ -112,8 +155,7 @@ export function upsertCustomerFromBooking(input: {
 }) {
   if (!input.vrm || input.vrm === 'BLOCKED') return { customer: null, vehicle: null };
 
-  const existing =
-    findCustomerByPhone(input.phone) || findCustomerByEmail(input.email ?? '') || findCustomerByVrm(input.vrm);
+  const existing = findExistingCustomer({ phone: input.phone, email: input.email, name: input.name });
 
   const now = new Date().toISOString();
   const database = getDb();
@@ -222,16 +264,44 @@ export function searchCustomers(query: string) {
   })) satisfies CustomerListItem[];
 }
 
-export function createCustomer(input: { name: string; phone: string; email?: string; vrm?: string; profile_notes?: string }) {
+export function createCustomer(input: {
+  id?: string;
+  name: string;
+  phone: string;
+  email?: string;
+  vrm?: string;
+  make_model?: string;
+  engine?: string;
+  profile_notes?: string;
+}) {
   const now = new Date().toISOString();
-  const existing = findCustomerByPhone(input.phone) || findCustomerByEmail(input.email ?? '') || findCustomerByVrm(input.vrm ?? '');
+  const existing = findExistingCustomer({
+    id: input.id,
+    phone: input.phone,
+    email: input.email,
+    name: input.name,
+  });
   if (existing) {
-    if (input.vrm) upsertVehicleForCustomer(existing.id, input.vrm);
-    if (input.profile_notes) {
-      getDb()
-        .prepare('UPDATE customers SET profile_notes = CASE WHEN length(profile_notes) = 0 THEN ? ELSE profile_notes END, updated_at = ? WHERE id = ?')
-        .run(input.profile_notes, new Date().toISOString(), existing.id);
-    }
+    getDb()
+      .prepare(
+        `UPDATE customers
+         SET phone = CASE WHEN length(?) > 0 THEN ? ELSE phone END,
+             email = CASE WHEN length(?) > 0 THEN ? ELSE email END,
+             profile_notes = CASE WHEN length(profile_notes) = 0 AND length(?) > 0 THEN ? ELSE profile_notes END,
+             updated_at = ?
+         WHERE id = ?`,
+      )
+      .run(
+        input.phone,
+        input.phone,
+        input.email ?? '',
+        input.email ?? '',
+        input.profile_notes ?? '',
+        input.profile_notes ?? '',
+        now,
+        existing.id,
+      );
+    if (input.vrm) upsertVehicleForCustomer(existing.id, input.vrm, input.make_model, input.engine);
     return getCustomer(existing.id)!;
   }
   const id = nextId('CUS');
@@ -241,7 +311,7 @@ export function createCustomer(input: { name: string; phone: string; email?: str
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(id, now, now, input.name, input.phone, input.email ?? '', input.profile_notes ?? '');
-  if (input.vrm) upsertVehicleForCustomer(id, input.vrm);
+  if (input.vrm) upsertVehicleForCustomer(id, input.vrm, input.make_model, input.engine);
   return getCustomer(id)!;
 }
 
@@ -269,8 +339,8 @@ export function addCustomerNote(customerId: string, body: string) {
   return listCustomerNotes(customerId)[0] ?? null;
 }
 
-export function addCustomerVehicle(customerId: string, vrm: string, makeModel = '') {
-  const vehicle = upsertVehicleForCustomer(customerId, vrm, makeModel);
+export function addCustomerVehicle(customerId: string, vrm: string, makeModel = '', engine = '') {
+  const vehicle = upsertVehicleForCustomer(customerId, vrm, makeModel, engine);
   getDb().prepare('UPDATE customers SET updated_at = ? WHERE id = ?').run(new Date().toISOString(), customerId);
   return vehicle;
 }

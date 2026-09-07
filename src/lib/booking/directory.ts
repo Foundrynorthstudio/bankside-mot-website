@@ -83,7 +83,7 @@ export function searchBookingDirectory(query: string) {
     if (seen.has(key)) continue;
     seen.add(key);
     matches.push(match);
-    if (matches.length >= 8) break;
+    if (matches.length >= 12) break;
   }
   return matches;
 }

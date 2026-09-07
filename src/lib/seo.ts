@@ -6,7 +6,7 @@ type JsonLdProps = {
   description: string;
   path: string;
   breadcrumbs?: { name: string; path: string }[];
-  faqs?: { question: string; answer: string }[];
+  faqs?: { question: string; answer: string; link?: { href: string; label: string } }[];
 };
 
 export function businessJsonLd() {
@@ -119,7 +119,7 @@ export function pageJsonLd({ type = 'page', name, description, path, breadcrumbs
         name: faq.question,
         acceptedAnswer: {
           '@type': 'Answer',
-          text: faq.answer,
+          text: faq.link ? `${faq.answer} ${faq.link.href}` : faq.answer,
         },
       })),
     });

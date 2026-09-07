@@ -3,8 +3,8 @@ export const prerender = false;
 
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { isEmailConfigured } from '../../lib/booking/auth';
-import { diaryById, parseDiaryId, resourceLabel, servicesForDiary } from '../../lib/booking/config';
-import { addDaysISO, formatDayHeading, formatLongDate, formatSlotRange, mondayOfWeek, timeToMinutes, todayISO, weekdaysFrom } from '../../lib/booking/dates';
+import { COMBO_COLLECTION_NOTE, diaryById, formatServicePrice, isMorningDropOffService, parseDiaryId, resourceLabel, servicesForDiary } from '../../lib/booking/config';
+import { addDaysISO, formatBookingSlotLabel, formatDayHeading, formatLongDate, formatSlotRange, mondayOfWeek, timeToMinutes, todayISO, weekdaysFrom } from '../../lib/booking/dates';
 import { createBooking, getBooking, listBookingsBetween, SlotTakenError, updateBookingStatus } from '../../lib/booking/db';
 import { backfillCustomersFromBookings } from '../../lib/booking/customers';
 import { sendBookingEmails } from '../../lib/booking/email';
@@ -22,9 +22,16 @@ const nextWeek = addDaysISO(monday, 7);
 const selectedId = url.searchParams.get('id');
 const compose = url.searchParams.get('slot');
 const selected = selectedId ? getBooking(selectedId) : null;
-const diaryId = parseDiaryId(url.searchParams.get('diary') || selected?.diary);
+const diaryId = 'mot' as const;
 const diary = diaryById(diaryId);
 const diaryServices = servicesForDiary(diaryId);
+
+if (Astro.request.method === 'GET' && url.searchParams.get('diary') === 'service') {
+  const next = new URL('/admin', url.origin);
+  next.searchParams.set('week', monday);
+  if (selectedId) next.searchParams.set('id', selectedId);
+  return Astro.redirect(`${next.pathname}${next.search}`);
+}
 
 let notice = url.searchParams.get('notice') || '';
 let error = url.searchParams.get('error') || '';
@@ -37,11 +44,10 @@ if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
   const action = String(form.get('action') ?? '');
   const week = String(form.get('week') ?? monday);
-  const postedDiary = parseDiaryId(String(form.get('diary') ?? diaryId));
+  const postedDiary = 'mot' as const;
   const returnTo = (extra: Record<string, string>) => {
     const next = new URL('/admin', url.origin);
     next.searchParams.set('week', week);
-    next.searchParams.set('diary', postedDiary);
     for (const [key, value] of Object.entries(extra)) {
       if (value) next.searchParams.set(key, value);
     }
@@ -152,7 +158,7 @@ function cellClass(booking: Booking | undefined) {
 }
 
 function weekHref(week: string, extra = '') {
-  return `/admin?week=${week}&diary=${diaryId}${extra}`;
+  return `/admin?week=${week}${extra}`;
 }
 ---
 
@@ -171,20 +177,6 @@ function weekHref(week: string, extra = '') {
       </p>
     </div>
     <div class="flex flex-wrap items-center gap-2">
-      <div class="flex rounded-xl border border-slate-200 bg-white p-1 text-xs font-semibold">
-        <a
-          href={`/admin?week=${monday}&diary=mot`}
-          class:list={['rounded-lg px-3 py-1.5', diaryId === 'mot' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50']}
-        >
-          MOT
-        </a>
-        <a
-          href={`/admin?week=${monday}&diary=service`}
-          class:list={['rounded-lg px-3 py-1.5', diaryId === 'service' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50']}
-        >
-          Services
-        </a>
-      </div>
       <a href={weekHref(prevWeek)} class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">Previous</a>
       <a href={weekHref(today)} class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">This week</a>
       <a href={weekHref(nextWeek)} class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">Next</a>
@@ -251,9 +243,12 @@ function weekHref(week: string, extra = '') {
             <a href={weekHref(monday)} class="text-xs text-slate-500 hover:text-slate-800">Close</a>
           </div>
           <dl class="space-y-1.5 text-sm">
-            <div class="flex justify-between gap-3"><dt class="text-slate-500">When</dt><dd class="font-semibold text-slate-900">{formatLongDate(selected.date)} · {formatSlotRange(selected.time, diaryById(parseDiaryId(selected.diary)).durationMinutes)}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">When</dt><dd class="font-semibold text-slate-900">{formatLongDate(selected.date)} · {formatBookingSlotLabel(selected.service, selected.time, parseDiaryId(selected.diary))}</dd></div>
             <div class="flex justify-between gap-3"><dt class="text-slate-500">Diary</dt><dd class="font-semibold text-slate-900">{diaryById(parseDiaryId(selected.diary)).name} · {resourceLabel(parseDiaryId(selected.diary), selected.resource)}</dd></div>
             <div class="flex justify-between gap-3"><dt class="text-slate-500">Service</dt><dd class="font-semibold text-slate-900">{selected.service}</dd></div>
+            {isMorningDropOffService(selected.service) && (
+              <p class="pt-2 text-xs leading-relaxed text-slate-600">{COMBO_COLLECTION_NOTE}</p>
+            )}
             {selected.status !== 'blocked' && (
               <>
                 <div class="flex justify-between gap-3"><dt class="text-slate-500">VRM</dt><dd class="font-semibold text-slate-900">{selected.vrm}</dd></div>
@@ -334,7 +329,7 @@ function weekHref(week: string, extra = '') {
               Service
               <select name="service" class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
                 {diaryServices.map((service) => (
-                  <option value={service.name}>{service.name} · £{service.price}</option>
+                  <option value={service.name}>{service.name} · {formatServicePrice(service)}</option>
                 ))}
               </select>
             </label>
@@ -346,12 +341,14 @@ function weekHref(week: string, extra = '') {
                 <option value="admin">Admin</option>
               </select>
             </label>
-            <p class="pt-1 text-[11px] font-medium text-slate-500">Start typing a name, phone or registration to fill in a returning customer.</p>
+            <p class="pt-1 text-[11px] font-medium text-slate-500">Start typing a name, phone, email or registration to fill in a returning customer. A new car for someone you already have will stay on their existing record.</p>
+            <input type="hidden" name="customer_id" value="" />
+            <input type="hidden" name="vehicle_id" value="" />
             <input name="vrm" data-directory-field required placeholder="Registration" autocomplete="off" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm uppercase" />
             <input name="customer_name" data-directory-field required placeholder="Customer name" autocomplete="off" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
             <input name="customer_phone" data-directory-field required placeholder="Phone" autocomplete="off" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+            <input name="customer_email" type="email" data-directory-field placeholder="Email (optional)" autocomplete="off" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
             <div data-directory-results hidden class="space-y-1 rounded-xl border border-brand-200 bg-white p-1 shadow-sm"></div>
-            <input name="customer_email" type="email" placeholder="Email (optional)" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
             <input name="vehicle_make_model" placeholder="Make / model (optional)" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
             <select name="payment_method" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
               <option value="Pay at Garage">Pay at Garage</option>
@@ -378,10 +375,11 @@ function weekHref(week: string, extra = '') {
         <section class="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-600">
           <h2 class="mb-2 font-bold text-slate-900">How to use</h2>
           <ul class="list-disc space-y-1 pl-4">
-            <li>Switch between the MOT diary and the Services diary at the top.</li>
-            <li>MOT tests are hourly from 08:30 to 16:00. Services run in two-hour slots with Mechanic 1 and Mechanic 2.</li>
+            <li>This is the MOT diary only. Servicing is booked on the workshop’s own system.</li>
+            <li>MOT tests are booked in 45-minute slots from 08:30, with the last slot at 16:00.</li>
+            <li>Failed MOT retests are not booked on the public website. The customer phones the office and you add the slot here if needed.</li>
             <li>Click an open slot to add a phone booking or block it.</li>
-            <li>When adding a booking, type a name, phone or registration to fill in a returning customer.</li>
+            <li>When adding a booking, type a name, phone, email or registration to fill in a returning customer.</li>
             <li>Click a booking to see customer details, complete it, or cancel it.</li>
           </ul>
         </section>
@@ -389,7 +387,3 @@ function weekHref(week: string, extra = '') {
     </aside>
   </div>
 </AdminLayout>
-
-<script>
-  import '../../scripts/admin-diary';
-</script>

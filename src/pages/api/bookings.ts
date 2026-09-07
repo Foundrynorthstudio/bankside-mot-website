@@ -1,8 +1,7 @@
 import type { APIRoute } from 'astro';
-import { diaryForService } from '../../lib/booking/config';
 import { createBooking, SlotTakenError } from '../../lib/booking/db';
 import { sendBookingEmails } from '../../lib/booking/email';
-import { getSlotsForDate } from '../../lib/booking/slots';
+import { slotsForService } from '../../lib/booking/slots';
 import { validatePublicBooking } from '../../lib/booking/validate';
 
 export const prerender = false;
@@ -27,13 +26,13 @@ export const POST: APIRoute = async ({ request }) => {
     customer_email: String(body.customer_email ?? ''),
     payment_method: String(body.payment_method ?? 'Pay at Garage'),
     notes: String(body.notes ?? ''),
-  });
+  }, { publicOnly: true });
 
   if (errors.length > 0 || !value) {
     return Response.json({ error: errors[0], errors }, { status: 400 });
   }
 
-  const slots = getSlotsForDate(value.date, diaryForService(value.service));
+  const slots = slotsForService(value.date, value.service);
   const slot = slots.find((item) => item.time === value.time);
   if (!slot?.available) {
     return Response.json({ error: 'That time slot is no longer available.', slots }, { status: 409 });
@@ -54,11 +53,11 @@ export const POST: APIRoute = async ({ request }) => {
       ref: booking.id,
       booking,
       emailSent,
-      slots: getSlotsForDate(value.date, diaryForService(value.service)),
+      slots: slotsForService(value.date, value.service),
     });
   } catch (error) {
     if (error instanceof SlotTakenError) {
-      return Response.json({ error: error.message, slots: getSlotsForDate(value.date, diaryForService(value.service)) }, { status: 409 });
+      return Response.json({ error: error.message, slots: slotsForService(value.date, value.service) }, { status: 409 });
     }
     console.error(error);
     return Response.json({ error: 'Could not save the booking. Please call the garage.' }, { status: 500 });

@@ -6,11 +6,25 @@ import ImageSlot from '../components/ImageSlot.astro';
 import FaqList from '../components/FaqList.astro';
 import { photos } from '../data/photos';
 import { serviceFaqs } from '../data/faqs';
+import { business } from '../data/site';
+
+const workshopRepairs = [
+  'Brakes, discs and pads',
+  'Clutches',
+  'Exhausts',
+  'Suspension and steering',
+  'Cambelts and timing belts',
+  'Cooling systems',
+  'Batteries and charging',
+  'Electrical faults',
+  'Welding and MOT repairs',
+  'General maintenance',
+];
 ---
 
 <Layout
-  title="MOT Prices Falkirk | Class 4 £40, Class 7 £50 | Bankside MOT & Repair"
-  description="Fixed-price MOT tests in Falkirk: Class 4 MOT £40, Class 7 MOT £50, interim service from £120, major service from £185. VAT included. Book online."
+  title="MOT, Servicing & Repairs Falkirk | Bankside MOT & Repair"
+  description="Full garage in Falkirk: Class 4 MOT £50, servicing, diagnostics, alignment, air-con, and all types of repair and maintenance. VAT included. Book an MOT online or call for a quote."
   breadcrumbs={[
     { name: 'Home', path: '/' },
     { name: 'Services & Pricing', path: '/services' },
@@ -19,18 +33,57 @@ import { serviceFaqs } from '../data/faqs';
 >
   <div class="bg-slate-50 py-12">
     <div class="container mx-auto px-4">
-      <div class="mx-auto mb-12 max-w-3xl text-center">
-        <span class="rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-xs font-semibold tracking-wider text-brand-600 uppercase">Transparent Pricing</span>
-        <h1 class="mt-2 text-3xl font-extrabold text-slate-900 sm:text-4xl">MOT & garage prices in Falkirk</h1>
-        <p class="mt-2 text-sm text-slate-600 sm:text-base">Clear upfront rates with no hidden add-ons. VAT included.</p>
+      <div class="mx-auto mb-10 max-w-3xl text-center">
+        <span class="rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-xs font-semibold tracking-wider text-brand-600 uppercase">Full garage · Falkirk</span>
+        <h1 class="mt-2 text-3xl font-extrabold text-slate-900 sm:text-4xl">MOT, servicing and repairs in Falkirk</h1>
+        <p class="mt-2 text-sm text-slate-600 sm:text-base">Bankside is a full workshop. The prices below are the jobs most drivers book — they are not the limit of what we do.</p>
       </div>
 
-      <div class="mb-12 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <section class="mb-12 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div class="grid gap-0 lg:grid-cols-12 lg:items-stretch">
+          <div class="lg:col-span-5">
+            <ImageSlot
+              src={photos.workshopRepairs.src}
+              label={photos.workshopRepairs.label}
+              brief={photos.workshopRepairs.brief}
+              alt="Lined-up workshop spanners in the tool chest at Bankside MOT & Repair"
+              class="aspect-[16/10] h-full min-h-[220px] w-full lg:rounded-none"
+            />
+          </div>
+          <div class="space-y-3 p-6 sm:p-8 lg:col-span-7">
+            <h2 class="text-xl font-extrabold text-slate-900 sm:text-2xl">All types of repair and maintenance</h2>
+            <p class="text-sm leading-relaxed text-slate-600 sm:text-base">
+              We carry out everyday garage work as well as MOTs and servicing: brakes, clutches, exhausts, suspension, cambelts, electrics, welding and MOT repairs, and general maintenance. If it is not on a tile below, ask the office — if it is a job a local garage should take on, we will look at it.
+            </p>
+            <p class="text-sm leading-relaxed text-slate-600">Repair work is quoted and agreed with you before we start. Call {business.telephoneDisplay} and we will fit it into the workshop diary.</p>
+            <ul class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {workshopRepairs.map((item) => (
+                <li class="flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                  <i class="fa-solid fa-check text-brand-600"></i>
+                  {item}
+                </li>
+              ))}
+            </ul>
+            <a href={`tel:${business.telephone}`} class="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-slate-800">
+              <i class="fa-solid fa-phone text-brand-500"></i>
+              Call {business.telephoneDisplay}
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <div class="mb-6 max-w-3xl">
+        <h2 class="text-xl font-extrabold text-slate-900 sm:text-2xl">Popular jobs and prices</h2>
+        <p class="mt-1 text-sm text-slate-600">Class 4 MOTs are a fixed £50 and can be booked online. Servicing, diagnostics, wheel alignment and air-con start from the prices below and are confirmed for your vehicle before work begins. VAT included.</p>
+      </div>
+
+      <div class="mb-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <div class="hover-lift flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-white">
           <ImageSlot
             src={photos.serviceMot.src}
             label={photos.serviceMot.label}
             brief={photos.serviceMot.brief}
+            alt="MOT tools board and emissions tester in the Bankside MOT bay"
             class="aspect-[16/10] w-full"
           />
           <div class="flex flex-1 flex-col justify-between p-6">
@@ -39,45 +92,17 @@ import { serviceFaqs } from '../data/faqs';
                 <h3 class="text-xl font-bold text-slate-900">Class 4 MOT Test</h3>
                 <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-700 uppercase">Standard Cars</span>
               </div>
-              <p class="mb-4 text-sm text-slate-500">Official DVSA inspection for cars, small vans & taxis up to 3,000kg.</p>
-              <div class="mb-4 text-3xl font-extrabold text-slate-900">£40<span class="text-xs font-normal text-slate-500">.00 Fixed</span></div>
-              <ul class="mb-6 space-y-2 text-sm text-slate-600">
-                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Official DVSA Inspection</li>
-                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Free 10-Day Retest Policy</li>
-                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> 45-60 Min Turnaround</li>
-                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Clean Waiting Lounge & Wi-Fi</li>
-              </ul>
-            </div>
-            <button type="button" @click="quickBook('Class 4 MOT', 40)" class="w-full rounded-xl bg-brand-600 py-2.5 text-xs font-semibold text-white transition hover:bg-brand-700">
-              Book Class 4 (£40)
-            </button>
-          </div>
-        </div>
-
-        <div class="hover-lift flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-white">
-          <ImageSlot
-            src={photos.serviceClass7.src}
-            label={photos.serviceClass7.label}
-            brief={photos.serviceClass7.brief}
-            class="aspect-[16/10] w-full"
-          />
-          <div class="flex flex-1 flex-col justify-between p-6">
-            <div>
-              <div class="mb-3 flex items-start justify-between">
-                <h3 class="text-xl font-bold text-slate-900">Class 7 MOT Test</h3>
-                <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-700 uppercase">Commercial Vans</span>
-              </div>
-              <p class="mb-4 text-sm text-slate-500">High-bay inspection for commercial goods vehicles (3,000kg – 3,500kg DGW).</p>
+              <p class="mb-4 text-sm text-slate-500">Official DVSA inspection for cars, small vans & taxis up to 3,000kg. If it fails and you leave it with us, a retest within 10 working days is free. If you take it away, a partial retest fee may apply unless you bring it back the next working day for certain items. Call the office for a retest slot — it cannot be booked online.</p>
               <div class="mb-4 text-3xl font-extrabold text-slate-900">£50<span class="text-xs font-normal text-slate-500">.00 Fixed</span></div>
               <ul class="mb-6 space-y-2 text-sm text-slate-600">
-                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Heavy Commercial Bay</li>
-                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> High Capacity Lift</li>
-                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Fleet Account Support</li>
-                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Itemized VAT Invoice</li>
+                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Official DVSA Inspection</li>
+                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Free retest if left with us (within 10 working days), as per DVSA rules</li>
+                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> 45-minute booked slots</li>
+                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Reception if you want to wait</li>
               </ul>
             </div>
-            <button type="button" @click="quickBook('Class 7 MOT', 50)" class="w-full rounded-xl bg-brand-600 py-2.5 text-xs font-semibold text-white transition hover:bg-brand-700">
-              Book Class 7 (£50)
+            <button type="button" @click="quickBook('Class 4 MOT', 50)" class="w-full rounded-xl bg-brand-600 py-2.5 text-xs font-semibold text-white transition hover:bg-brand-700">
+              Book Class 4 (£50)
             </button>
           </div>
         </div>
@@ -95,26 +120,27 @@ import { serviceFaqs } from '../data/faqs';
                 <h3 class="text-xl font-bold text-slate-900">Interim Servicing</h3>
                 <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-700 uppercase">6,000 Miles Check</span>
               </div>
-              <p class="mb-4 text-sm text-slate-500">Essential oil, filter change and multi-point safety inspection.</p>
-              <div class="mb-4 text-3xl font-extrabold text-slate-900"><span class="text-xs font-normal text-slate-500">From </span>£120<span class="text-xs font-normal text-slate-500">.00</span></div>
+              <p class="mb-4 text-sm text-slate-500">Essential oil, filter change and multi-point safety inspection. Final price depends on make and model.</p>
+              <div class="mb-4 text-3xl font-extrabold text-slate-900"><span class="text-xs font-normal text-slate-500">From </span>£175</div>
               <ul class="mb-6 space-y-2 text-sm text-slate-600">
-                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Synthetic oil replacement</li>
+                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Oil to manufacturer's recommendation</li>
                 <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> OEM oil filter replacement</li>
                 <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> 35-point vehicle health check</li>
                 <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Service light reset</li>
               </ul>
             </div>
-            <button type="button" @click="quickBook('Interim Service', 120)" class="w-full rounded-xl bg-brand-600 py-2.5 text-xs font-semibold text-white transition hover:bg-brand-700">
-              Book Interim Service
-            </button>
+            <a href="tel:01324613007" class="w-full rounded-xl bg-brand-600 py-2.5 text-xs font-semibold text-white transition hover:bg-brand-700 text-center">
+              Call to book
+            </a>
           </div>
         </div>
 
         <div class="hover-lift flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-white">
           <ImageSlot
-            src={photos.serviceServicing.src}
-            label="Major service"
-            brief="Can reuse the servicing shot, or take a wider bay photo during a full annual service."
+            src={photos.serviceMajor.src}
+            label={photos.serviceMajor.label}
+            brief={photos.serviceMajor.brief}
+            alt="Mechanic using an impact wrench on a wheel at Bankside MOT & Repair"
             class="aspect-[16/10] w-full"
           />
           <div class="flex flex-1 flex-col justify-between p-6">
@@ -123,21 +149,153 @@ import { serviceFaqs } from '../data/faqs';
                 <h3 class="text-xl font-bold text-slate-900">Major Servicing</h3>
                 <span class="rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-800 uppercase">Annual Check</span>
               </div>
-              <p class="mb-4 text-sm text-slate-500">Complete yearly service & full mechanical vehicle health check.</p>
-              <div class="mb-4 text-3xl font-extrabold text-slate-900"><span class="text-xs font-normal text-slate-500">From </span>£185<span class="text-xs font-normal text-slate-500">.00</span></div>
+              <p class="mb-4 text-sm text-slate-500">Complete yearly service & full mechanical vehicle health check. Final price depends on make and model.</p>
+              <div class="mb-4 text-3xl font-extrabold text-slate-900"><span class="text-xs font-normal text-slate-500">From </span>£260</div>
               <ul class="mb-6 space-y-2 text-sm text-slate-600">
                 <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> All Interim Service items</li>
+                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Oil to manufacturer's recommendation</li>
                 <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Air, Fuel & Cabin filters</li>
                 <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> 70-point comprehensive check</li>
                 <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Spark plug inspection</li>
               </ul>
             </div>
-            <button type="button" @click="quickBook('Major Service', 185)" class="w-full rounded-xl bg-brand-600 py-2.5 text-xs font-semibold text-white transition hover:bg-brand-700">
-              Book Major Service
-            </button>
+            <a href="tel:01324613007" class="w-full rounded-xl bg-brand-600 py-2.5 text-xs font-semibold text-white transition hover:bg-brand-700 text-center">
+              Call to book
+            </a>
+          </div>
+        </div>
+
+        <div class="hover-lift flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          <ImageSlot
+            src={photos.serviceDiagnostics.src}
+            label={photos.serviceDiagnostics.label}
+            brief={photos.serviceDiagnostics.brief}
+            class="aspect-[16/10] w-full"
+          />
+          <div class="flex flex-1 flex-col justify-between p-6">
+            <div>
+              <div class="mb-3 flex items-start justify-between">
+                <h3 class="text-xl font-bold text-slate-900">Diagnostics</h3>
+                <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-700 uppercase">Computer Scan</span>
+              </div>
+              <p class="mb-4 text-sm text-slate-500">Dealer-level diagnostic software for warning lights and fault investigation. Final price depends on the vehicle and the job.</p>
+              <div class="mb-4 text-3xl font-extrabold text-slate-900"><span class="text-xs font-normal text-slate-500">From </span>£45</div>
+              <ul class="mb-6 space-y-2 text-sm text-slate-600">
+                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Warning light investigation</li>
+                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> ABS, airbag & DPF diagnostics</li>
+                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Dealer-level scan tools</li>
+                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Quoted before any extra work</li>
+              </ul>
+            </div>
+            <a href="tel:01324613007" class="w-full rounded-xl bg-brand-600 py-2.5 text-xs font-semibold text-white transition hover:bg-brand-700 text-center">
+              Call to book
+            </a>
+          </div>
+        </div>
+
+        <div class="hover-lift flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          <ImageSlot
+            src={photos.serviceAlignment.src}
+            label={photos.serviceAlignment.label}
+            brief={photos.serviceAlignment.brief}
+            class="aspect-[16/10] w-full"
+          />
+          <div class="flex flex-1 flex-col justify-between p-6">
+            <div>
+              <div class="mb-3 flex items-start justify-between">
+                <h3 class="text-xl font-bold text-slate-900">Wheel Alignment</h3>
+                <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-700 uppercase">Tracking</span>
+              </div>
+              <p class="mb-4 text-sm text-slate-500">Wheel alignment and tracking. Price depends on whether you need the front two wheels or all four.</p>
+              <div class="mb-4 text-lg font-extrabold leading-snug text-slate-900">Front two from £45<br />All four from £65</div>
+              <ul class="mb-6 space-y-2 text-sm text-slate-600">
+                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Front two wheels from £45</li>
+                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> All four wheels from £65</li>
+                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Helps even tyre wear and steering</li>
+                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Quoted for your make and model</li>
+              </ul>
+            </div>
+            <a href="tel:01324613007" class="w-full rounded-xl bg-brand-600 py-2.5 text-xs font-semibold text-white transition hover:bg-brand-700 text-center">
+              Call to book
+            </a>
+          </div>
+        </div>
+
+        <div class="hover-lift flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          <ImageSlot
+            src={photos.serviceAircon.src}
+            label={photos.serviceAircon.label}
+            brief={photos.serviceAircon.brief}
+            alt="Air-con regassing machine connected to a car at Bankside MOT & Repair"
+            class="aspect-[16/10] w-full"
+          />
+          <div class="flex flex-1 flex-col justify-between p-6">
+            <div>
+              <div class="mb-3 flex items-start justify-between">
+                <h3 class="text-xl font-bold text-slate-900">Air-Con Regassing</h3>
+                <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-700 uppercase">Recharge</span>
+              </div>
+              <p class="mb-4 text-sm text-slate-500">Air conditioning recharge and performance check. Final price depends on the vehicle and refrigerant.</p>
+              <div class="mb-4 text-3xl font-extrabold text-slate-900"><span class="text-xs font-normal text-slate-500">From </span>£75</div>
+              <ul class="mb-6 space-y-2 text-sm text-slate-600">
+                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Recover, vacuum and recharge</li>
+                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> System performance check</li>
+                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Leak check before extra work</li>
+                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Quoted before any extra parts</li>
+              </ul>
+            </div>
+            <a href="tel:01324613007" class="w-full rounded-xl bg-brand-600 py-2.5 text-xs font-semibold text-white transition hover:bg-brand-700 text-center">
+              Call to book
+            </a>
           </div>
         </div>
       </div>
+
+      <section class="mb-12 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div class="grid lg:grid-cols-12 lg:items-stretch">
+          <div class="grid sm:grid-cols-2 lg:col-span-7">
+            <div class="relative">
+              <ImageSlot
+                src={photos.brakeBefore.src}
+                label={photos.brakeBefore.label}
+                brief={photos.brakeBefore.brief}
+                alt="Worn rusty brake disc before replacement at Bankside MOT & Repair"
+                class="aspect-[4/3] h-full min-h-[200px] w-full sm:rounded-none"
+              />
+              <span class="pointer-events-none absolute top-3 left-3 z-10 rounded-full bg-slate-950/75 px-2.5 py-1 text-[10px] font-semibold tracking-wider text-white uppercase">Before</span>
+            </div>
+            <div class="relative">
+              <ImageSlot
+                src={photos.brakeAfter.src}
+                label={photos.brakeAfter.label}
+                brief={photos.brakeAfter.brief}
+                alt="New brake discs and pads fitted at Bankside MOT & Repair"
+                class="aspect-[4/3] h-full min-h-[200px] w-full sm:rounded-none"
+              />
+              <span class="pointer-events-none absolute top-3 left-3 z-10 rounded-full bg-slate-950/75 px-2.5 py-1 text-[10px] font-semibold tracking-wider text-white uppercase">After</span>
+            </div>
+          </div>
+          <div class="flex flex-col justify-center space-y-4 p-6 sm:p-8 lg:col-span-5">
+            <div>
+              <span class="rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-xs font-semibold tracking-wider text-brand-600 uppercase">All makes and models</span>
+              <h2 class="mt-3 text-xl font-extrabold text-slate-900 sm:text-2xl">Discs and pads</h2>
+            </div>
+            <p class="text-sm leading-relaxed text-slate-600 sm:text-base">
+              We fit new discs and pads on every make and model that comes through the workshop. If the discs are scored or rusty, or the pads are worn, we quote the parts and labour for your vehicle before we start.
+            </p>
+            <ul class="space-y-2 text-sm text-slate-600">
+              <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Front or rear, all makes and models</li>
+              <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Quality discs and pads, quoted before we fit them</li>
+              <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Common MOT fail — we can do the work and the retest</li>
+              <li class="flex items-center gap-2"><i class="fa-solid fa-check text-brand-600"></i> Booked by phone so it fits the workshop diary</li>
+            </ul>
+            <a href={`tel:${business.telephone}`} class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-brand-700">
+              <i class="fa-solid fa-phone"></i>
+              Call {business.telephoneDisplay} to book
+            </a>
+          </div>
+        </div>
+      </section>
 
       <div class="flex flex-col items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:flex-row">
         <div class="flex items-center gap-4 text-center md:text-left">
@@ -145,14 +303,16 @@ import { serviceFaqs } from '../data/faqs';
             <i class="fa-solid fa-tag"></i>
           </div>
           <div>
-            <h4 class="text-base font-bold text-slate-900">Save £20 when combining MOT + Major Service</h4>
-            <p class="text-sm text-slate-500">Combine your annual MOT with any Full or Major Service for maximum convenience and bundle savings.</p>
+            <h4 class="text-base font-bold text-slate-900">Book a Class 4 MOT with a major service</h4>
+            <p class="text-sm text-slate-500">Drop the vehicle off in the morning. The MOT is £50; the major service is from £260 depending on the vehicle. Leave the car with us until the end of the day, or collect the following morning.</p>
           </div>
         </div>
-        <button type="button" @click="quickBook('MOT + Major Service Combo', 205)" class="whitespace-nowrap rounded-xl bg-slate-900 px-5 py-3 text-xs font-semibold text-white transition hover:bg-slate-800">
-          Book MOT & Service Bundle (£205)
+        <button type="button" @click="quickBook('MOT + Major Service Combo', 310)" class="whitespace-nowrap rounded-xl bg-slate-900 px-5 py-3 text-xs font-semibold text-white transition hover:bg-slate-800">
+          Book MOT & Service (from £310)
         </button>
       </div>
+
+      <p class="mt-4 text-center text-xs text-slate-500">Class 7 MOTs for trade accounts are available by arrangement — call 01324 613007.</p>
 
       <FaqList items={serviceFaqs} />
     </div>

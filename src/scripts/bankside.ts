@@ -1,4 +1,5 @@
 import Alpine from 'alpinejs';
+import { serviceByName } from '../lib/booking/config';
 
 type Town = {
   name: string;
@@ -18,7 +19,7 @@ const townList: Town[] = [
     name: 'Grangemouth',
     postcode: 'FK3',
     driveTime: '8 Mins',
-    description: 'Fast access via the A904 / A9 for Grangemouth drivers needing Class 4 & Class 7 commercial MOTs.',
+    description: 'Fast access via the A904 / A9 for Grangemouth drivers needing a Class 4 MOT or a service.',
   },
   {
     name: 'Larbert',
@@ -94,7 +95,8 @@ Alpine.data('banksideApp', () => ({
   bookingModalOpen: false,
   bookingStep: 1,
   selectedService: 'Class 4 MOT',
-  servicePrice: 40,
+  servicePrice: 50,
+  servicePriceFrom: false,
   bookingDate: nextWeekdayISO(),
   minDate: londonISO(),
   maxDate: addDaysISO(londonISO(), 56),
@@ -132,6 +134,7 @@ Alpine.data('banksideApp', () => ({
   quickBook(serviceName: string, price: number) {
     this.selectedService = serviceName;
     this.servicePrice = price;
+    this.servicePriceFrom = Boolean(serviceByName(serviceName)?.from);
     this.bookingStep = 1;
     this.bookingError = '';
     this.bookingModalOpen = true;

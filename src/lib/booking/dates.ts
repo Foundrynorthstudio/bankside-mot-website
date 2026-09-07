@@ -1,4 +1,4 @@
-import { BOOKING_HORIZON_DAYS, SAME_DAY_BUFFER_MINUTES, TIMEZONE, type DiaryId, diaryById } from './config';
+import { BOOKING_HORIZON_DAYS, SAME_DAY_BUFFER_MINUTES, TIMEZONE, type DiaryId, diaryById, diaryForService, isMorningDropOffService } from './config';
 
 export function todayISO(now = new Date()) {
   return new Intl.DateTimeFormat('en-CA', {
@@ -82,6 +82,12 @@ export function addMinutesToTime(time: string, minutes: number) {
 
 export function formatSlotRange(start: string, durationMinutes: number) {
   return `${start}–${addMinutesToTime(start, durationMinutes)}`;
+}
+
+export function formatBookingSlotLabel(serviceName: string, time: string, diaryId?: DiaryId) {
+  if (isMorningDropOffService(serviceName)) return `${time} morning drop-off`;
+  const diary = diaryById(diaryId ?? diaryForService(serviceName));
+  return formatSlotRange(time, diary.durationMinutes);
 }
 
 export function maxBookableDate(now = new Date()) {

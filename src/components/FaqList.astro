@@ -2,6 +2,10 @@
 interface Faq {
   question: string;
   answer: string;
+  link?: {
+    href: string;
+    label: string;
+  };
 }
 
 interface Props {
@@ -18,7 +22,23 @@ const { items } = Astro.props;
     {items.map((item) => (
       <div class="px-5 py-4">
         <dt class="text-sm font-bold text-slate-900">{item.question}</dt>
-        <dd class="mt-1.5 text-sm leading-relaxed text-slate-600">{item.answer}</dd>
+        <dd class="mt-1.5 text-sm leading-relaxed text-slate-600">
+          {item.answer}
+          {item.link && (
+            <>
+              {' '}
+              <a
+                href={item.link.href}
+                class="font-semibold text-brand-700 underline decoration-brand-200 underline-offset-2 hover:text-brand-800"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {item.link.label}
+              </a>
+              .
+            </>
+          )}
+        </dd>
       </div>
     ))}
   </dl>

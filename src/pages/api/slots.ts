@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { maxBookableDate, todayISO } from '../../lib/booking/dates';
-import { diaryForService, parseDiaryId } from '../../lib/booking/config';
-import { getSlotsForDate } from '../../lib/booking/slots';
+import { diaryForService } from '../../lib/booking/config';
+import { slotsForService } from '../../lib/booking/slots';
 
 export const prerender = false;
 
@@ -15,6 +15,8 @@ export const GET: APIRoute = ({ url }) => {
   }
 
   const service = url.searchParams.get('service');
-  const diaryId = service ? diaryForService(service) : parseDiaryId(url.searchParams.get('diary'));
-  return Response.json({ date, diary: diaryId, slots: getSlotsForDate(date, diaryId) });
+  if (!service) {
+    return Response.json({ error: 'Choose a service.' }, { status: 400 });
+  }
+  return Response.json({ date, diary: diaryForService(service), slots: slotsForService(date, service) });
 };

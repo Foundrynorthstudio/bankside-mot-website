@@ -1,7 +1,7 @@
 import { createTransport } from 'nodemailer';
 import { business } from '../../data/site';
-import { diaryById, env, garageEmail, parseDiaryId, resourceLabel } from './config';
-import { formatLongDate, formatSlotRange } from './dates';
+import { COMBO_COLLECTION_NOTE, diaryById, env, formatPriceForBooking, garageEmail, isMorningDropOffService, parseDiaryId, resourceLabel } from './config';
+import { formatBookingSlotLabel, formatLongDate } from './dates';
 import type { Booking } from './types';
 
 function transporter() {
@@ -26,12 +26,14 @@ function fromAddress() {
 
 function bookingSummary(booking: Booking) {
   const diary = diaryById(parseDiaryId(booking.diary));
-  const when = `${formatLongDate(booking.date)} at ${formatSlotRange(booking.time, diary.durationMinutes)}`;
+  const when = `${formatLongDate(booking.date)} · ${formatBookingSlotLabel(booking.service, booking.time, diary.id)}`;
+  const comboNote = isMorningDropOffService(booking.service) ? COMBO_COLLECTION_NOTE : '';
   return [
     `Reference: ${booking.id}`,
-    `Service: ${booking.service} (£${booking.price})`,
+    `Service: ${booking.service} (${formatPriceForBooking(booking.service, booking.price)})`,
     `Diary: ${diary.name} · ${resourceLabel(diary.id, booking.resource)}`,
     `Date: ${when}`,
+    comboNote,
     `VRM: ${booking.vrm}`,
     booking.vehicle_make_model ? `Vehicle: ${booking.vehicle_make_model}` : '',
     booking.vehicle_engine ? `Engine: ${booking.vehicle_engine}` : '',
@@ -70,7 +72,7 @@ export async function sendBookingEmails(booking: Booking) {
       from: fromAddress(),
       to: booking.customer_email,
       subject: customerSubject,
-      text: `Thank you ${booking.customer_name}. Your ${booking.service} is booked for ${formatLongDate(booking.date)} at ${booking.time}.\n\n${text}\n\n${business.name}\n${business.streetAddress}, ${business.addressLocality}, ${business.postalCode}\n${business.telephoneDisplay}`,
+      text: `Thank you ${booking.customer_name}. Your ${booking.service} is booked for ${formatLongDate(booking.date)} at ${formatBookingSlotLabel(booking.service, booking.time, parseDiaryId(booking.diary))}.${isMorningDropOffService(booking.service) ? `\n\n${COMBO_COLLECTION_NOTE}` : ''}\n\n${text}\n\n${business.name}\n${business.streetAddress}, ${business.addressLocality}, ${business.postalCode}\n${business.telephoneDisplay}`,
     });
   }
 

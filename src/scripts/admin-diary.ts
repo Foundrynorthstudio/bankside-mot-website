@@ -13,12 +13,47 @@ function field(form: HTMLElement, name: string) {
   return form.querySelector<HTMLInputElement>(`[name="${name}"]`);
 }
 
-function initDirectoryLookup() {
-  const form = document.querySelector<HTMLElement>('[data-directory-form]');
-  const results = document.querySelector<HTMLElement>('[data-directory-results]');
-  if (!form || !results) return;
+function fill(el: HTMLInputElement | null, value: string, overwrite = true) {
+  if (!el || !value) return;
+  if (!overwrite && el.value.trim()) return;
+  el.value = value;
+}
+
+function compactVrm(value: string) {
+  return value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+function applyMatch(form: HTMLElement, match: DirectoryMatch) {
+  const vrmField = field(form, 'vrm');
+  const typedVrm = compactVrm(vrmField?.value ?? '');
+  const matchVrm = compactVrm(match.vrm);
+  const keepTypedVrm = Boolean(typedVrm && matchVrm && typedVrm !== matchVrm);
+
+  fill(field(form, 'customer_id'), match.customer_id);
+  fill(field(form, 'customer_name'), match.name);
+  fill(field(form, 'name'), match.name);
+  fill(field(form, 'customer_phone'), match.phone);
+  fill(field(form, 'phone'), match.phone);
+  fill(field(form, 'customer_email'), match.email);
+  fill(field(form, 'email'), match.email);
+
+  if (!keepTypedVrm) {
+    fill(field(form, 'vehicle_id'), match.vehicle_id);
+    fill(vrmField, match.vrm);
+    fill(field(form, 'vehicle_make_model'), match.make_model);
+    fill(field(form, 'make_model'), match.make_model);
+    fill(field(form, 'vehicle_engine'), match.engine);
+    fill(field(form, 'engine'), match.engine);
+  }
+}
+
+function initDirectoryForm(form: HTMLElement) {
+  const results = form.querySelector<HTMLElement>('[data-directory-results]');
+  if (!results) return;
 
   const inputs = [...form.querySelectorAll<HTMLInputElement>('[data-directory-field]')];
+  if (inputs.length === 0) return;
+
   let timer = 0;
   let activeIndex = -1;
   let matches: DirectoryMatch[] = [];
@@ -41,18 +76,7 @@ function initDirectoryLookup() {
   }
 
   function apply(match: DirectoryMatch) {
-    const vrm = field(form, 'vrm');
-    const name = field(form, 'customer_name');
-    const phone = field(form, 'customer_phone');
-    const email = field(form, 'customer_email');
-    const makeModel = field(form, 'vehicle_make_model');
-    const engine = field(form, 'vehicle_engine');
-    if (vrm && match.vrm) vrm.value = match.vrm;
-    if (name && match.name) name.value = match.name;
-    if (phone && match.phone) phone.value = match.phone;
-    if (email) email.value = match.email;
-    if (makeModel) makeModel.value = match.make_model;
-    if (engine) engine.value = match.engine;
+    applyMatch(form, match);
     hide();
   }
 
@@ -72,7 +96,7 @@ function initDirectoryLookup() {
       title.className = 'font-semibold text-slate-900';
       title.textContent = match.name || match.vrm || 'Existing record';
       button.append(title);
-      const detail = [match.phone, match.vrm, match.make_model].filter(Boolean).join(' · ');
+      const detail = [match.phone, match.email, match.vrm, match.make_model].filter(Boolean).join(' · ');
       if (detail) {
         const line = document.createElement('div');
         line.className = 'text-[11px] text-slate-500';
@@ -111,7 +135,13 @@ function initDirectoryLookup() {
 
   for (const input of inputs) {
     input.setAttribute('autocomplete', 'off');
-    input.addEventListener('input', () => schedule(input.value));
+    input.addEventListener('input', () => {
+      const customerId = field(form, 'customer_id');
+      const vehicleId = field(form, 'vehicle_id');
+      if (customerId) customerId.value = '';
+      if (vehicleId) vehicleId.value = '';
+      schedule(input.value);
+    });
     input.addEventListener('focus', () => {
       if (input.value.trim().length >= 2) schedule(input.value);
     });
@@ -146,6 +176,12 @@ function initDirectoryLookup() {
     if (form.contains(event.target as Node)) return;
     hide();
   });
+}
+
+function initDirectoryLookup() {
+  for (const form of document.querySelectorAll<HTMLElement>('[data-directory-form]')) {
+    initDirectoryForm(form);
+  }
 }
 
 initDirectoryLookup();

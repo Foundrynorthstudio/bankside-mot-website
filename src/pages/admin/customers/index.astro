@@ -2,7 +2,7 @@
 export const prerender = false;
 
 import AdminLayout from '../../../layouts/AdminLayout.astro';
-import { createCustomer, searchCustomers } from '../../../lib/booking/customers';
+import { createCustomer, findExistingCustomer, searchCustomers } from '../../../lib/booking/customers';
 import { normalisePhone, normaliseVrm } from '../../../lib/booking/validate';
 
 const url = Astro.url;
@@ -12,16 +12,33 @@ let error = url.searchParams.get('error') || '';
 
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
+  const customerId = String(form.get('customer_id') ?? '').trim();
   const name = String(form.get('name') ?? '').trim();
   const phone = normalisePhone(String(form.get('phone') ?? ''));
   const email = String(form.get('email') ?? '').trim().toLowerCase();
   const vrm = normaliseVrm(String(form.get('vrm') ?? ''));
+  const makeModel = String(form.get('make_model') ?? '').trim();
+  const engine = String(form.get('engine') ?? '').trim();
+  const existing = findExistingCustomer({ id: customerId, phone, email, name });
 
   if (name.length < 2 || phone.length < 10) {
     error = 'Name and a valid phone number are required.';
   } else {
-    const customer = createCustomer({ name, phone, email, vrm: vrm || undefined });
-    return Astro.redirect(`/admin/customers/${customer.id}?notice=${encodeURIComponent('Customer saved.')}`);
+    const customer = createCustomer({
+      id: existing?.id,
+      name,
+      phone,
+      email,
+      vrm: vrm || undefined,
+      make_model: makeModel || undefined,
+      engine: engine || undefined,
+    });
+    const noticeText = existing
+      ? vrm
+        ? `Matched existing customer. ${vrm} assigned to their record.`
+        : 'Matched existing customer — no new record created.'
+      : 'Customer saved.';
+    return Astro.redirect(`/admin/customers/${customer.id}?notice=${encodeURIComponent(noticeText)}`);
   }
 }
 
@@ -104,12 +121,16 @@ const customers = searchCustomers(q);
 
     <section class="rounded-2xl border border-slate-200 bg-white p-5 lg:col-span-4">
       <h2 class="text-lg font-bold text-slate-900">Add customer</h2>
-      <p class="mt-1 mb-4 text-xs text-slate-500">Use this for a phone enquiry with no booking yet. Online bookings create a record automatically.</p>
-      <form method="post" class="space-y-2">
-        <input name="name" required placeholder="Full name" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
-        <input name="phone" required placeholder="Phone" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
-        <input name="email" type="email" placeholder="Email (optional)" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
-        <input name="vrm" placeholder="Registration (optional)" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm uppercase" />
+      <p class="mt-1 mb-4 text-xs text-slate-500">Start typing a name, phone or email to reuse an existing record. A registration entered here is assigned to that customer — it does not create a second customer.</p>
+      <form method="post" class="space-y-2" data-directory-form>
+        <input type="hidden" name="customer_id" value="" />
+        <input name="name" data-directory-field required placeholder="Full name" autocomplete="off" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+        <input name="phone" data-directory-field required placeholder="Phone" autocomplete="off" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+        <input name="email" type="email" data-directory-field placeholder="Email (optional)" autocomplete="off" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+        <div data-directory-results hidden class="space-y-1 rounded-xl border border-brand-200 bg-white p-1 shadow-sm"></div>
+        <input name="vrm" data-directory-field placeholder="Registration (optional)" autocomplete="off" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm uppercase" />
+        <input name="make_model" placeholder="Make / model (optional)" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+        <input name="engine" placeholder="Engine / fuel (optional)" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
         <button class="w-full rounded-xl bg-brand-600 py-2.5 text-xs font-semibold text-white">Save customer</button>
       </form>
     </section>

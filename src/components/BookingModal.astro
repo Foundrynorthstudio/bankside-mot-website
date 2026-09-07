@@ -1,5 +1,5 @@
 ---
-import { SERVICES } from '../lib/booking/config';
+import { BOOKABLE_SERVICES, COMBO_COLLECTION_NOTE, formatServicePrice } from '../lib/booking/config';
 ---
 
 <div
@@ -30,18 +30,19 @@ import { SERVICES } from '../lib/booking/config';
       <div>
         <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Select Required Service</label>
         <div class="grid grid-cols-2 gap-2 text-xs">
-          {SERVICES.map((service) => (
+          {BOOKABLE_SERVICES.map((service) => (
             <button
               type="button"
-              @click={`selectedService = '${service.name}'; servicePrice = ${service.price}`}
+              @click={`selectedService = '${service.name}'; servicePrice = ${service.price}; servicePriceFrom = ${service.from}`}
               :class={`selectedService === '${service.name}' ? 'border-brand-600 bg-brand-50/60 text-slate-900 font-bold' : 'border-slate-200 bg-slate-50 text-slate-700'`}
               class="p-3 rounded-xl border text-left flex flex-col justify-between transition"
             >
               <span class="font-semibold">{service.name}</span>
-              <span class="text-brand-600 font-extrabold mt-1">£{service.price}.00</span>
+              <span class="text-brand-600 font-extrabold mt-1">{formatServicePrice(service)}</span>
             </button>
           ))}
         </div>
+        <p class="mt-2 text-[11px] text-slate-500">Online MOT bookings are for a first test. If the vehicle has failed and you need a retest, call 01324 613007 and the office will give you a slot.</p>
       </div>
 
       <button type="button" @click="goToSlotStep()" class="w-full py-3 rounded-xl bg-slate-900 text-white font-semibold text-xs tracking-wide transition">
@@ -53,11 +54,12 @@ import { SERVICES } from '../lib/booking/config';
       <div>
         <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Preferred Booking Date</label>
         <input type="date" x-model="bookingDate" :min="minDate" :max="maxDate" @change="loadSlots()" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 outline-none">
-        <p class="mt-1 text-[11px] text-slate-500">MOT tests are hourly from 08:30 to 16:00. Services use two-hour slots, with two mechanics available at each time.</p>
+        <p x-show="selectedService !== 'MOT + Major Service Combo'" class="mt-1 text-[11px] text-slate-500">MOT tests are booked in 45-minute slots from 08:30, with the last slot at 16:00.</p>
+        <p x-show="selectedService === 'MOT + Major Service Combo'" x-cloak class="mt-1 text-[11px] text-slate-500">{COMBO_COLLECTION_NOTE} Choose a morning drop-off time.</p>
       </div>
 
       <div>
-        <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Available Time Slot</label>
+        <label class="block text-xs font-bold text-slate-700 uppercase mb-2" x-text="selectedService === 'MOT + Major Service Combo' ? 'Morning drop-off' : 'Available Time Slot'"></label>
         <p x-show="slotsLoading" class="text-xs text-slate-500"><i class="fa-solid fa-circle-notch animate-spin mr-1"></i> Checking the diary…</p>
         <div class="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
           <template x-for="slot in availableSlots" :key="slot.time">
@@ -88,8 +90,10 @@ import { SERVICES } from '../lib/booking/config';
       <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs space-y-1">
         <div class="flex justify-between"><span class="text-slate-500">Vehicle:</span><span class="font-bold text-slate-900" x-text="vrmInput || '—'"></span></div>
         <div class="flex justify-between"><span class="text-slate-500">Service:</span><span class="font-bold text-slate-900" x-text="selectedService"></span></div>
-        <div class="flex justify-between"><span class="text-slate-500">Date/Time:</span><span class="font-bold text-slate-900" x-text="bookingDate + ' @ ' + selectedTime"></span></div>
-        <div class="flex justify-between"><span class="text-slate-500">Total:</span><span class="font-extrabold text-brand-600" x-text="'£' + servicePrice"></span></div>
+        <div class="flex justify-between"><span class="text-slate-500">Date/Time:</span><span class="font-bold text-slate-900" x-text="selectedService === 'MOT + Major Service Combo' ? bookingDate + ' · ' + selectedTime + ' drop-off' : bookingDate + ' @ ' + selectedTime"></span></div>
+        <div class="flex justify-between"><span class="text-slate-500">Total:</span><span class="font-extrabold text-brand-600" x-text="(servicePriceFrom ? 'From £' : '£') + servicePrice"></span></div>
+        <p x-show="servicePriceFrom" x-cloak class="pt-1 text-[11px] text-slate-500">We'll confirm the exact service price for your make and model before work starts.</p>
+        <p x-show="selectedService === 'MOT + Major Service Combo'" x-cloak class="pt-1 text-[11px] text-slate-500">{COMBO_COLLECTION_NOTE}</p>
       </div>
 
       <div class="space-y-2">
@@ -122,8 +126,9 @@ import { SERVICES } from '../lib/booking/config';
       </div>
       <h3 class="text-2xl font-bold text-slate-900">Booking Confirmed!</h3>
       <p class="text-sm text-slate-600 max-w-md mx-auto">
-        Thank you <span class="text-slate-900 font-bold" x-text="customerName"></span>. We have reserved your <span class="text-slate-900 font-bold" x-text="selectedService"></span> slot for <span class="text-slate-900 font-bold" x-text="bookingDate"></span> at <span class="text-slate-900 font-bold" x-text="selectedTime"></span>.
+        Thank you <span class="text-slate-900 font-bold" x-text="customerName"></span>. We have reserved your <span class="text-slate-900 font-bold" x-text="selectedService"></span> for <span class="text-slate-900 font-bold" x-text="bookingDate"></span> at <span class="text-slate-900 font-bold" x-text="selectedTime"></span>.
       </p>
+      <p x-show="selectedService === 'MOT + Major Service Combo'" x-cloak class="text-sm text-slate-600 max-w-md mx-auto">{COMBO_COLLECTION_NOTE}</p>
       <div class="bg-slate-50 p-4 rounded-xl text-xs text-slate-700 text-left border border-slate-200 space-y-1">
         <div><strong>Booking Ref:</strong> <span class="text-brand-600 font-bold" x-text="bookingRef"></span></div>
         <div><strong>Garage Address:</strong> Castlelaurie Industrial Estate, Falkirk, FK2 7XJ</div>

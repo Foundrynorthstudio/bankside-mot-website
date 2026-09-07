@@ -13,8 +13,8 @@ export const photos = {
   },
   serviceMot: {
     src: '/images/service-mot.jpg',
-    label: 'MOT in progress',
-    brief: 'Landscape crop. Rollers, headlamp aligner, or tester at the console.',
+    label: 'MOT bay',
+    brief: 'Landscape crop. MOT tools board, emissions console, or the car on the lift.',
   },
   serviceClass7: {
     src: '/images/service-class7.jpg',
@@ -26,49 +26,59 @@ export const photos = {
     label: 'Servicing',
     brief: 'Landscape crop. Under the bonnet — oil, filters, hands at work.',
   },
+  serviceMajor: {
+    src: '/images/service-major.jpg',
+    label: 'Wheel off on the lift',
+    brief: 'Mechanic with an impact wrench on a wheel — a bigger job in the bay.',
+  },
+  workshopRepairs: {
+    src: '/images/workshop-repairs.jpg',
+    label: 'Workshop tools',
+    brief: 'Close-up of lined-up spanners in the tool chest.',
+  },
+  brakeBefore: {
+    src: '/images/brake-before.jpg',
+    label: 'Discs and pads — before',
+    brief: 'Wheel off, worn rusty disc and pads before replacement.',
+  },
+  brakeAfter: {
+    src: '/images/brake-after.jpg',
+    label: 'Discs and pads — after',
+    brief: 'Same corner after new discs and pads are fitted.',
+  },
   serviceDiagnostics: {
     src: '/images/service-diagnostics.jpg',
     label: 'Diagnostics',
     brief: 'Landscape crop. Laptop or scan tool on the dash / in the footwell.',
   },
+  serviceAlignment: {
+    src: '/images/service-alignment.jpg',
+    label: 'Wheel alignment',
+    brief: 'Optional. Alignment machine on the wheels, or a tracking printout. Can reuse a bay shot until then.',
+  },
+  serviceAircon: {
+    src: '/images/service-aircon.jpg',
+    label: 'Air-con regassing',
+    brief: 'Air-con machine connected under the bonnet.',
+  },
   teamBand: {
     src: '/images/team-band.jpg',
-    label: 'Team in the bay',
-    brief: 'Wide landscape. Dave and Craig in overalls in the workshop. A wider hero crop works until then.',
-  },
-  teamDave: {
-    src: '/images/team-dave.jpg',
-    label: 'Dave MacIntyre',
-    brief: 'Portrait, 4:5. Overalls, same wall or bay background as the rest of the team.',
-  },
-  teamCraig: {
-    src: '/images/team-craig.jpg',
-    label: 'Craig Henderson',
-    brief: 'Portrait, 4:5. Same background and framing as Dave, Callum and Sarah.',
-  },
-  teamCallum: {
-    src: '/images/team-callum.jpg',
-    label: 'Callum Smith',
-    brief: 'Portrait, 4:5. Same background and framing as the rest of the team.',
-  },
-  teamSarah: {
-    src: '/images/team-sarah.jpg',
-    label: 'Sarah Jenkins',
-    brief: 'Portrait, 4:5. Same background and framing as the rest of the team.',
+    label: 'Workshop in action',
+    brief: 'Wide landscape of the bays at work. Cars on the lifts is fine — no posed staff portraits needed.',
   },
   exterior: {
     src: '/images/exterior.jpg',
     label: 'Unit 1b exterior',
-    brief: 'The building as drivers will see it on Castlelaurie. Include any signage.',
+    brief: 'The building from Castlelaurie, with the Bankside MOT & Repair Centre sign.',
   },
   waitingLounge: {
     src: '/images/waiting-lounge.jpg',
-    label: 'Waiting lounge',
-    brief: 'Landscape. The customer area you already mention — clean lounge and Wi-Fi.',
+    label: 'Reception',
+    brief: 'Reception desk and a sofa if you wait. Honest, not a showroom.',
   },
   aboutWorkshop: {
     src: '/images/about-workshop.jpg',
     label: 'Workshop interior',
-    brief: 'A second bay angle for About. A tighter crop of the hero shot is fine.',
+    brief: 'Engine bay or a second workshop angle for About.',
   },
 } as const;

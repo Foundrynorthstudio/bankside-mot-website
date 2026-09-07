@@ -2,9 +2,9 @@
 export const prerender = false;
 
 import AdminLayout from '../../../layouts/AdminLayout.astro';
-import { backfillCustomersFromBookings } from '../../../lib/booking/customers';
+import { backfillCustomersFromBookings, createCustomer, findExistingCustomer, getCustomer } from '../../../lib/booking/customers';
 import { createVehicle, searchVehicles } from '../../../lib/booking/vehicles';
-import { normaliseVrm } from '../../../lib/booking/validate';
+import { normalisePhone, normaliseVrm } from '../../../lib/booking/validate';
 
 const url = Astro.url;
 backfillCustomersFromBookings();
@@ -17,12 +17,32 @@ if (Astro.request.method === 'POST') {
   const vrm = normaliseVrm(String(form.get('vrm') ?? ''));
   const makeModel = String(form.get('make_model') ?? '').trim();
   const engine = String(form.get('engine') ?? '').trim();
+  const customerId = String(form.get('customer_id') ?? '').trim();
+  const name = String(form.get('name') ?? '').trim();
+  const phone = normalisePhone(String(form.get('phone') ?? ''));
+  const email = String(form.get('email') ?? '').trim().toLowerCase();
 
   if (vrm.length < 2) {
     error = 'Enter a valid registration.';
   } else {
-    const vehicle = createVehicle({ vrm, make_model: makeModel, engine });
-    return Astro.redirect(`/admin/vehicles/${vehicle.id}?notice=${encodeURIComponent('Vehicle saved.')}`);
+    const existingCustomer =
+      (customerId ? getCustomer(customerId) : null) || findExistingCustomer({ phone, email, name });
+    let ownerId = existingCustomer?.id ?? '';
+    if (!ownerId && name.length >= 2 && phone.length >= 10) {
+      ownerId = createCustomer({ name, phone, email }).id;
+    }
+    const vehicle = createVehicle({
+      vrm,
+      make_model: makeModel,
+      engine,
+      customer_id: ownerId || undefined,
+    });
+    const noticeText = existingCustomer
+      ? `${vrm} assigned to ${existingCustomer.name}.`
+      : ownerId
+        ? 'Vehicle saved and linked to the new customer.'
+        : 'Vehicle saved.';
+    return Astro.redirect(`/admin/vehicles/${vehicle.id}?notice=${encodeURIComponent(noticeText)}`);
   }
 }
 
@@ -97,11 +117,17 @@ const vehicles = searchVehicles(q);
 
     <section class="rounded-2xl border border-slate-200 bg-white p-5 lg:col-span-4">
       <h2 class="text-lg font-bold text-slate-900">Add vehicle</h2>
-      <p class="mt-1 mb-4 text-xs text-slate-500">Use this for a walk-in or phone enquiry before a booking is made. Existing registrations are reused rather than duplicated.</p>
-      <form method="post" class="space-y-2">
-        <input name="vrm" required placeholder="Registration" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm uppercase" />
+      <p class="mt-1 mb-4 text-xs text-slate-500">Type a registration or customer name to reuse records already on file. Assigning a new car to someone you already have does not create a second customer.</p>
+      <form method="post" class="space-y-2" data-directory-form>
+        <input type="hidden" name="customer_id" value="" />
+        <input type="hidden" name="vehicle_id" value="" />
+        <input name="vrm" data-directory-field required placeholder="Registration" autocomplete="off" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm uppercase" />
         <input name="make_model" placeholder="Make / model (optional)" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
         <input name="engine" placeholder="Engine / fuel (optional)" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+        <input name="name" data-directory-field placeholder="Assign to customer (name)" autocomplete="off" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+        <input name="phone" data-directory-field placeholder="Customer phone" autocomplete="off" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+        <input name="email" type="email" data-directory-field placeholder="Customer email" autocomplete="off" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+        <div data-directory-results hidden class="space-y-1 rounded-xl border border-brand-200 bg-white p-1 shadow-sm"></div>
         <button class="w-full rounded-xl bg-brand-600 py-2.5 text-xs font-semibold text-white">Save vehicle</button>
       </form>
     </section>

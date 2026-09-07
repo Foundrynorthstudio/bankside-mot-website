@@ -54,7 +54,7 @@ const og = sharp({
         `<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
           <rect x="0" y="0" width="12" height="630" fill="#115d50"/>
           <rect x="40" y="70" width="${(ogLogoMeta.width ?? 400) + 48}" height="490" rx="24" fill="#ffffff"/>
-          <text x="560" y="250" font-family="Arial, Helvetica, sans-serif" font-size="42" font-weight="800" fill="#ffffff">Class 4 &amp; Class 7 MOT tests</text>
+          <text x="560" y="250" font-family="Arial, Helvetica, sans-serif" font-size="42" font-weight="800" fill="#ffffff">Class 4 MOT tests from £50</text>
           <text x="560" y="310" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="600" fill="#34d399">Falkirk · Castlelaurie Industrial Estate</text>
           <text x="560" y="430" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="500" fill="#94a3b8">Servicing · Diagnostics · Transparent pricing</text>
         </svg>`,

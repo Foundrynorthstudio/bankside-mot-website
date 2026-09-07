@@ -38,7 +38,7 @@ const hasTeamBandPhoto = photoExists(photos.teamBand.src);
           </h1>
 
           <p class="mx-auto max-w-2xl text-base font-normal leading-relaxed text-slate-300 sm:text-lg lg:mx-0">
-            Independent mechanic expertise with clear, fixed pricing. DVSA approved Class 4 & Class 7 MOT tests, dealer-spec vehicle servicing, and diagnostics at Castlelaurie Industrial Estate.
+            Independent mechanic expertise with clear pricing. DVSA approved Class 4 MOT tests, dealer-spec vehicle servicing, and diagnostics at Castlelaurie Industrial Estate.
           </p>
 
           <div class="flex flex-wrap items-center justify-center gap-3 pt-2 text-xs font-medium text-slate-700 lg:justify-start">
@@ -153,7 +153,7 @@ const hasTeamBandPhoto = photoExists(photos.teamBand.src);
           <h2 class="mt-2 text-2xl font-extrabold text-slate-900 sm:text-3xl">Transparent Workshop Pricing</h2>
         </div>
         <a href="/services" class="mt-3 flex items-center gap-1.5 text-sm font-semibold tracking-wide text-brand-600 hover:text-brand-700 md:mt-0">
-          <span>View All Fixed Price Menus</span>
+          <span>View services & prices</span>
           <i class="fa-solid fa-arrow-right"></i>
         </a>
       </div>
@@ -164,15 +164,16 @@ const hasTeamBandPhoto = photoExists(photos.teamBand.src);
             src={photos.serviceMot.src}
             label={photos.serviceMot.label}
             brief={photos.serviceMot.brief}
+            alt="MOT tools board and emissions tester in the Bankside MOT bay"
             class="aspect-[16/10] w-full"
           />
           <div class="flex flex-1 flex-col justify-between p-6">
             <div class="space-y-3">
-              <h3 class="text-xl font-bold text-slate-900">Class 4 & Class 7 MOTs</h3>
-              <p class="text-sm leading-relaxed text-slate-600">Official DVSA inspection facility for passenger cars, light commercial goods, motorhomes, and fleet vans up to 3,500kg GTW.</p>
-              <div class="text-lg font-extrabold text-slate-900">Class 4: £40 • Class 7: £50</div>
+              <h3 class="text-xl font-bold text-slate-900">Class 4 MOT</h3>
+              <p class="text-sm leading-relaxed text-slate-600">Official DVSA inspection for cars, small vans and taxis. Most of our MOT customers book this test. If the car fails, phone the office to book a retest — that is not available online.</p>
+              <div class="text-lg font-extrabold text-slate-900">£50</div>
             </div>
-            <button type="button" @click="quickBook('Class 4 MOT', 40)" class="mt-6 w-full rounded-xl bg-slate-900 py-2.5 text-xs font-semibold text-white transition hover:bg-slate-800">Book MOT Test Slot</button>
+            <button type="button" @click="quickBook('Class 4 MOT', 50)" class="mt-6 w-full rounded-xl bg-slate-900 py-2.5 text-xs font-semibold text-white transition hover:bg-slate-800">Book MOT Test Slot</button>
           </div>
         </div>
 
@@ -186,27 +187,28 @@ const hasTeamBandPhoto = photoExists(photos.teamBand.src);
           <div class="flex flex-1 flex-col justify-between p-6">
             <div class="space-y-3">
               <h3 class="text-xl font-bold text-slate-900">Interim & Major Servicing</h3>
-              <p class="text-sm leading-relaxed text-slate-600">Manufacturer-compliant routine servicing using OEM filters and Mobil 1 synthetic lubricants. Keeps your warranty 100% intact.</p>
-              <div class="text-lg font-extrabold text-slate-900">Interim from £120 • Major from £185</div>
+              <p class="text-sm leading-relaxed text-slate-600">Manufacturer-compliant routine servicing using OEM filters and oil to the manufacturer's recommendation. Prices vary by make and model.</p>
+              <div class="text-lg font-extrabold text-slate-900">Interim from £175 • Major from £260</div>
             </div>
-            <button type="button" @click="quickBook('Major Service', 185)" class="mt-6 w-full rounded-xl bg-slate-900 py-2.5 text-xs font-semibold text-white transition hover:bg-slate-800">Book Vehicle Service</button>
+            <a href="tel:01324613007" class="mt-6 w-full rounded-xl bg-slate-900 py-2.5 text-xs font-semibold text-white transition hover:bg-slate-800 text-center">Call to book</a>
           </div>
         </div>
 
         <div class="hover-lift flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/90 bg-white">
           <ImageSlot
-            src={photos.serviceDiagnostics.src}
-            label={photos.serviceDiagnostics.label}
-            brief={photos.serviceDiagnostics.brief}
+            src={photos.brakeBefore.src}
+            label={photos.brakeBefore.label}
+            brief={photos.brakeBefore.brief}
+            alt="Worn brake disc before pads and discs are replaced at Bankside MOT & Repair"
             class="aspect-[16/10] w-full"
           />
           <div class="flex flex-1 flex-col justify-between p-6">
             <div class="space-y-3">
               <h3 class="text-xl font-bold text-slate-900">Diagnostics & Brakes</h3>
-              <p class="text-sm leading-relaxed text-slate-600">Dealer-level diagnostic software for warning lights, ABS, airbag, DPF regeneration, and complete brake disc & pad replacements.</p>
-              <div class="text-lg font-extrabold text-slate-900">Computer Scan: £45</div>
+              <p class="text-sm leading-relaxed text-slate-600">Dealer-level diagnostic software for warning lights, ABS, airbag, DPF regeneration, and complete brake disc & pad replacements. Scan price depends on the vehicle and the job.</p>
+              <div class="text-lg font-extrabold text-slate-900">Computer Scan: from £45</div>
             </div>
-            <button type="button" @click="quickBook('Diagnostic Scan', 45)" class="mt-6 w-full rounded-xl bg-slate-900 py-2.5 text-xs font-semibold text-white transition hover:bg-slate-800">Book Diagnostic Scan</button>
+            <a href="tel:01324613007" class="mt-6 w-full rounded-xl bg-slate-900 py-2.5 text-xs font-semibold text-white transition hover:bg-slate-800 text-center">Call to book</a>
           </div>
         </div>
       </div>
@@ -227,10 +229,10 @@ const hasTeamBandPhoto = photoExists(photos.teamBand.src);
     <div class="container relative z-10 mx-auto px-4">
       <div class="grid items-center gap-8 lg:grid-cols-12">
         <div class="space-y-3 lg:col-span-8">
-          <span class="text-xs font-semibold tracking-wider text-brand-500 uppercase"><i class="fa-solid fa-user-gear mr-1"></i> Falkirk Mechanic Team</span>
-          <h2 class="text-2xl font-extrabold text-white sm:text-3xl">Decades of Local Workshop Experience</h2>
+          <span class="text-xs font-semibold tracking-wider text-brand-500 uppercase"><i class="fa-solid fa-user-gear mr-1"></i> The Bankside team</span>
+          <h2 class="text-2xl font-extrabold text-white sm:text-3xl">Decades of local workshop experience</h2>
           <p class="max-w-2xl text-sm leading-relaxed text-slate-300 sm:text-base">
-            Lead master tech Dave MacIntyre and DVSA tester Craig Henderson deliver clear advice, transparent upfront quotes, and guaranteed mechanical repairs without inflated dealer labor rates.
+            From MOT testing to everyday repairs, the garage has decades on the tools between them — and a junior mechanic bringing fresh energy to the bays. Clear advice, upfront quotes, and work you can trust, without inflated dealer labour rates.
           </p>
           {!hasTeamBandPhoto && (
             <p class="text-[11px] text-slate-400">
@@ -241,7 +243,7 @@ const hasTeamBandPhoto = photoExists(photos.teamBand.src);
         </div>
         <div class="flex justify-start lg:col-span-4 lg:justify-end">
           <a href="/about" class="rounded-xl bg-brand-600 px-5 py-3 text-xs font-semibold text-white shadow-sm transition hover:bg-brand-700">
-            Meet Our Workshop Engineers
+            Meet the team
           </a>
         </div>
       </div>

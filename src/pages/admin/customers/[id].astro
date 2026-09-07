@@ -59,7 +59,7 @@ if (Astro.request.method === 'POST') {
   if (action === 'vehicle') {
     const vrm = normaliseVrm(String(form.get('vrm') ?? ''));
     if (vrm.length < 2) return returnTo({ error: 'Enter a valid registration.' });
-    addCustomerVehicle(id, vrm, String(form.get('make_model') ?? '').trim());
+    addCustomerVehicle(id, vrm, String(form.get('make_model') ?? '').trim(), String(form.get('engine') ?? '').trim());
     return returnTo({ notice: `${vrm} assigned to this customer.` });
   }
 
@@ -317,7 +317,7 @@ function statusClass(status: string) {
     <div class="space-y-6 lg:col-span-5">
       <section class="rounded-2xl border border-slate-200 bg-white p-5">
         <h2 class="text-lg font-bold text-slate-900">Vehicles</h2>
-        <p class="mt-1 text-xs text-slate-500">A customer can have more than one vehicle. Assigning a registration that already exists will link this customer to that vehicle record.</p>
+        <p class="mt-1 text-xs text-slate-500">A customer can have more than one vehicle. Type a registration to reuse one already on file, or add a new car to this record without creating another customer.</p>
         <ul class="mt-3 space-y-2 text-sm">
           {vehicles.length === 0 && <li class="text-slate-500">No registrations stored yet.</li>}
           {vehicles.map((vehicle) => (
@@ -334,10 +334,13 @@ function statusClass(status: string) {
             </li>
           ))}
         </ul>
-        <form method="post" class="mt-4 space-y-2 border-t border-slate-100 pt-4">
+        <form method="post" class="mt-4 space-y-2 border-t border-slate-100 pt-4" data-directory-form>
           <input type="hidden" name="action" value="vehicle" />
-          <input name="vrm" required placeholder="Add registration" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm uppercase" />
+          <input type="hidden" name="vehicle_id" value="" />
+          <input name="vrm" data-directory-field required placeholder="Add registration" autocomplete="off" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm uppercase" />
+          <div data-directory-results hidden class="space-y-1 rounded-xl border border-brand-200 bg-white p-1 shadow-sm"></div>
           <input name="make_model" placeholder="Make / model (optional)" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+          <input name="engine" placeholder="Engine / fuel (optional)" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
           <button class="w-full rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-semibold text-slate-800">Assign vehicle</button>
         </form>
       </section>
