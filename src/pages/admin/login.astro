@@ -14,13 +14,18 @@ if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
   const username = String(form.get('username') ?? '');
   const password = String(form.get('password') ?? '');
-  const user = await verifyAdminLogin(username, password);
-  if (user) {
-    createAdminSession(Astro.cookies, user.username);
-    const next = Astro.url.searchParams.get('next') || '/admin';
-    return Astro.redirect(next.startsWith('/admin') ? next : '/admin');
+  try {
+    const user = await verifyAdminLogin(username, password);
+    if (user) {
+      createAdminSession(Astro.cookies, user.username);
+      const next = Astro.url.searchParams.get('next') || '/admin';
+      return Astro.redirect(next.startsWith('/admin') ? next : '/admin');
+    }
+    error = 'Those details were not recognised.';
+  } catch (caught) {
+    console.error(caught);
+    error = 'Could not reach the workshop database. Try again in a moment.';
   }
-  error = 'Those details were not recognised.';
 }
 ---
 

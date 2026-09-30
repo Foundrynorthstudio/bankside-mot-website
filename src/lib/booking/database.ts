@@ -99,6 +99,9 @@ function getPg() {
       idle_timeout: 20,
       connect_timeout: 10,
       ssl: local ? false : 'require',
+      connection: {
+        statement_timeout: 8000,
+      },
     });
   }
   return pg;
@@ -120,7 +123,19 @@ function schemaStatements(sql: string) {
 async function migratePostgres() {
   if (migrated) return;
   const client = getPg();
+  const existing = (await client.unsafe(
+    `SELECT tablename FROM pg_tables WHERE schemaname = 'public'`,
+  )) as { tablename: string }[];
+  const tables = new Set(existing.map((row) => row.tablename));
+  const ready = ['bookings', 'customers', 'vehicles', 'jobs', 'staff'].every((name) => tables.has(name));
+  if (ready) {
+    migrated = true;
+    return;
+  }
+
+  const skipRls = tables.has('bookings');
   for (const statement of schemaStatements(schemaSql)) {
+    if (skipRls && /ENABLE ROW LEVEL SECURITY/i.test(statement)) continue;
     await client.unsafe(statement);
   }
   migrated = true;
