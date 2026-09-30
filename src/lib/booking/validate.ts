@@ -1,12 +1,16 @@
 import { PAYMENT_METHODS, diaryForService, isMorningDropOffService, isMorningDropOffTime, serviceByName } from './config';
 import { isSlotInPast, isValidSlotTime, isWeekday, maxBookableDate, todayISO } from './dates';
 
-const VRM_PATTERN = /^[A-Z0-9]{2,8}$/;
+export const VRM_PATTERN = /^[A-Z0-9]{2,8}$/;
 const PHONE_PATTERN = /^[0-9+]{10,16}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function normaliseVrm(value: string) {
   return value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+export function isValidVrm(value: string) {
+  return VRM_PATTERN.test(normaliseVrm(value));
 }
 
 export function normalisePhone(value: string) {

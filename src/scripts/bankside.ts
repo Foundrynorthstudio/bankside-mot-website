@@ -62,10 +62,13 @@ Alpine.data('banksideApp', () => ({
   vrmInput: '',
   isSearchingVehicle: false,
   vrmFound: false,
+  vrmLookupError: '',
   vehicleData: {
-    makeModel: '2019 Vauxhall Corsa 1.4 EcoTec',
-    engineFuel: '1398cc Petrol • Manual',
-    motDue: 'MOT Due in 22 Days',
+    makeModel: '',
+    engineFuel: '',
+    motDue: '',
+    motTone: 'unknown' as 'ok' | 'due' | 'expired' | 'unknown',
+    colour: '',
   },
 
   financeAmount: 300,
@@ -94,22 +97,44 @@ Alpine.data('banksideApp', () => ({
   isSubmittingBooking: false,
   emailSent: false,
 
-  lookupVehicle() {
-    if (!this.vrmInput || this.vrmInput.trim() === '') {
-      this.vrmInput = 'SK19 MOT';
-    }
-    this.isSearchingVehicle = true;
-    this.vrmFound = false;
-
-    setTimeout(() => {
-      this.isSearchingVehicle = false;
-      this.vrmFound = true;
-    }, 800);
+  compactVrm() {
+    return this.vrmInput.toUpperCase().replace(/[^A-Z0-9]/g, '');
   },
 
-  setDemoVRM(reg: string) {
-    this.vrmInput = reg;
-    this.lookupVehicle();
+  async lookupVehicle() {
+    const vrm = this.compactVrm();
+    if (vrm.length < 2) {
+      this.vrmFound = false;
+      this.vrmLookupError = 'Enter a valid UK registration.';
+      return false;
+    }
+
+    this.isSearchingVehicle = true;
+    this.vrmFound = false;
+    this.vrmLookupError = '';
+
+    try {
+      const response = await fetch(`/api/lookup-vrm?vrm=${encodeURIComponent(vrm)}`);
+      const data = await response.json();
+      if (!response.ok) {
+        this.vrmLookupError = data.error || 'Could not look up that registration. You can still book.';
+        return false;
+      }
+      this.vehicleData = {
+        makeModel: data.makeModel ?? '',
+        engineFuel: data.engineFuel ?? '',
+        motDue: data.motStatus ?? '',
+        motTone: data.motTone ?? 'unknown',
+        colour: data.colour ?? '',
+      };
+      this.vrmFound = true;
+      return true;
+    } catch {
+      this.vrmLookupError = 'Could not look up that registration. You can still book.';
+      return false;
+    } finally {
+      this.isSearchingVehicle = false;
+    }
   },
 
   quickBook(serviceName: string, price: number) {
@@ -210,11 +235,14 @@ Alpine.data('banksideApp', () => ({
   },
 
   async goToSlotStep() {
-    if (!this.vrmInput.trim()) {
+    if (this.compactVrm().length < 2) {
       this.bookingError = 'Enter the vehicle registration first.';
       return;
     }
     this.bookingError = '';
+    if (!this.vrmFound && !this.isSearchingVehicle) {
+      await this.lookupVehicle();
+    }
     this.bookingStep = 2;
     await this.loadSlots();
   },

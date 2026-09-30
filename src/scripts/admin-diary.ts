@@ -178,9 +178,46 @@ function initDirectoryForm(form: HTMLElement) {
   });
 }
 
+function initVrmLookup(form: HTMLElement) {
+  const vrmField = field(form, 'vrm');
+  if (!vrmField) return;
+
+  let lastVrm = '';
+
+  async function lookup() {
+    const vrm = compactVrm(vrmField.value);
+    if (vrm.length < 2 || vrm === lastVrm) return;
+    lastVrm = vrm;
+
+    const makeField = field(form, 'vehicle_make_model') || field(form, 'make_model');
+    const engineField = field(form, 'vehicle_engine') || field(form, 'engine');
+    if (makeField?.value.trim() && engineField?.value.trim()) return;
+
+    try {
+      const response = await fetch(`/api/lookup-vrm?vrm=${encodeURIComponent(vrm)}`, {
+        headers: { Accept: 'application/json' },
+      });
+      if (!response.ok) return;
+      const data = (await response.json()) as { makeModel?: string; engineFuel?: string };
+      fill(makeField, data.makeModel ?? '', false);
+      fill(engineField, data.engineFuel ?? '', false);
+    } catch {
+      lastVrm = '';
+    }
+  }
+
+  vrmField.addEventListener('blur', () => {
+    void lookup();
+  });
+  vrmField.addEventListener('change', () => {
+    void lookup();
+  });
+}
+
 function initDirectoryLookup() {
   for (const form of document.querySelectorAll<HTMLElement>('[data-directory-form]')) {
     initDirectoryForm(form);
+    initVrmLookup(form);
   }
 }
 
