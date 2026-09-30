@@ -1,4 +1,4 @@
-import { getDb } from './database';
+import { sqlAll, sqlGet, sqlRun } from './database';
 import { nextId } from './ids';
 import { jobBalance, jobStatus, poundsToPence } from './money';
 
@@ -57,34 +57,33 @@ const JOB_SELECT = `SELECT j.*, COALESCE(v.vrm, '') AS vrm, COALESCE(v.make_mode
   FROM jobs j
   LEFT JOIN vehicles v ON v.id = j.vehicle_id`;
 
-export function getJob(id: string) {
-  const row = getDb().prepare(`${JOB_SELECT} WHERE j.id = ?`).get(id) as Record<string, unknown> | undefined;
+export async function getJob(id: string) {
+  const row = await sqlGet(`${JOB_SELECT} WHERE j.id = $1`, [id]);
   return row ? mapJob(row) : null;
 }
 
-export function listCustomerJobs(customerId: string) {
-  const rows = getDb()
-    .prepare(`${JOB_SELECT} WHERE j.customer_id = ? ORDER BY j.job_date DESC, j.created_at DESC`)
-    .all(customerId) as Record<string, unknown>[];
+export async function listCustomerJobs(customerId: string) {
+  const rows = await sqlAll(`${JOB_SELECT} WHERE j.customer_id = $1 ORDER BY j.job_date DESC, j.created_at DESC`, [
+    customerId,
+  ]);
   return rows.map(mapJob);
 }
 
-export function listVehicleJobs(vehicleId: string) {
-  const rows = getDb()
-    .prepare(`${JOB_SELECT} WHERE j.vehicle_id = ? ORDER BY j.job_date DESC, j.created_at DESC`)
-    .all(vehicleId) as Record<string, unknown>[];
+export async function listVehicleJobs(vehicleId: string) {
+  const rows = await sqlAll(`${JOB_SELECT} WHERE j.vehicle_id = $1 ORDER BY j.job_date DESC, j.created_at DESC`, [
+    vehicleId,
+  ]);
   return rows.map(mapJob);
 }
 
-export function customerJobTotals(customerId: string) {
-  const row = getDb()
-    .prepare(
-      `SELECT COALESCE(SUM(amount_pence), 0) AS amount, COALESCE(SUM(paid_pence), 0) AS paid
-       FROM jobs WHERE customer_id = ?`,
-    )
-    .get(customerId) as { amount: number; paid: number };
-  const amount = Number(row.amount ?? 0);
-  const paid = Number(row.paid ?? 0);
+export async function customerJobTotals(customerId: string) {
+  const row = await sqlGet(
+    `SELECT COALESCE(SUM(amount_pence), 0) AS amount, COALESCE(SUM(paid_pence), 0) AS paid
+     FROM jobs WHERE customer_id = $1`,
+    [customerId],
+  );
+  const amount = Number(row?.amount ?? 0);
+  const paid = Number(row?.paid ?? 0);
   return { amount, paid, outstanding: Math.max(0, amount - paid) };
 }
 
@@ -107,21 +106,19 @@ export function validateJobFields(fields: { description: string; job_date: strin
   return '';
 }
 
-export function createJob(input: JobInput) {
+export async function createJob(input: JobInput) {
   const description = input.description.trim();
   if (!description) return null;
   const id = nextId('JOB');
   const now = new Date().toISOString();
   const amountPence = poundsToPence(input.amount);
   const paidPence = poundsToPence(input.paid ?? 0);
-  getDb()
-    .prepare(
-      `INSERT INTO jobs (
-        id, created_at, customer_id, vehicle_id, booking_id, job_date, description,
-        invoice_ref, amount_pence, paid_pence, payment_method, notes
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(
+  await sqlRun(
+    `INSERT INTO jobs (
+      id, created_at, customer_id, vehicle_id, booking_id, job_date, description,
+      invoice_ref, amount_pence, paid_pence, payment_method, notes
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+    [
       id,
       now,
       input.customer_id,
@@ -134,25 +131,24 @@ export function createJob(input: JobInput) {
       paidPence,
       input.payment_method ?? '',
       (input.notes ?? '').trim(),
-    );
-  getDb().prepare('UPDATE customers SET updated_at = ? WHERE id = ?').run(now, input.customer_id);
+    ],
+  );
+  await sqlRun('UPDATE customers SET updated_at = $1 WHERE id = $2', [now, input.customer_id]);
   return getJob(id);
 }
 
-export function updateJob(id: string, input: Omit<JobInput, 'customer_id'>) {
-  const job = getJob(id);
+export async function updateJob(id: string, input: Omit<JobInput, 'customer_id'>) {
+  const job = await getJob(id);
   if (!job) return null;
   const description = input.description.trim();
   if (!description) return null;
   const now = new Date().toISOString();
-  getDb()
-    .prepare(
-      `UPDATE jobs
-       SET vehicle_id = ?, job_date = ?, description = ?, invoice_ref = ?,
-           amount_pence = ?, paid_pence = ?, payment_method = ?, notes = ?
-       WHERE id = ?`,
-    )
-    .run(
+  await sqlRun(
+    `UPDATE jobs
+     SET vehicle_id = $1, job_date = $2, description = $3, invoice_ref = $4,
+         amount_pence = $5, paid_pence = $6, payment_method = $7, notes = $8
+     WHERE id = $9`,
+    [
       input.vehicle_id ?? '',
       input.job_date,
       description,
@@ -162,26 +158,26 @@ export function updateJob(id: string, input: Omit<JobInput, 'customer_id'>) {
       input.payment_method ?? '',
       (input.notes ?? '').trim(),
       id,
-    );
-  getDb().prepare('UPDATE customers SET updated_at = ? WHERE id = ?').run(now, job.customer_id);
+    ],
+  );
+  await sqlRun('UPDATE customers SET updated_at = $1 WHERE id = $2', [now, job.customer_id]);
   return getJob(id);
 }
 
-export function recordJobPayment(jobId: string, amount: string | number, paymentMethod = '') {
-  const job = getJob(jobId);
+export async function recordJobPayment(jobId: string, amount: string | number, paymentMethod = '') {
+  const job = await getJob(jobId);
   if (!job) return null;
   const extra = poundsToPence(amount);
   if (extra <= 0) return job;
   const now = new Date().toISOString();
-  getDb()
-    .prepare(
-      `UPDATE jobs
-       SET paid_pence = paid_pence + ?,
-           payment_method = CASE WHEN length(?) > 0 THEN ? ELSE payment_method END
-       WHERE id = ?`,
-    )
-    .run(extra, paymentMethod, paymentMethod, jobId);
-  getDb().prepare('UPDATE customers SET updated_at = ? WHERE id = ?').run(now, job.customer_id);
+  await sqlRun(
+    `UPDATE jobs
+     SET paid_pence = paid_pence + $1,
+         payment_method = CASE WHEN length($2) > 0 THEN $2 ELSE payment_method END
+     WHERE id = $3`,
+    [extra, paymentMethod, jobId],
+  );
+  await sqlRun('UPDATE customers SET updated_at = $1 WHERE id = $2', [now, job.customer_id]);
   return getJob(jobId);
 }
 

@@ -7,7 +7,7 @@ import { createVehicle, searchVehicles } from '../../../lib/booking/vehicles';
 import { normalisePhone, normaliseVrm } from '../../../lib/booking/validate';
 
 const url = Astro.url;
-backfillCustomersFromBookings();
+await backfillCustomersFromBookings();
 const q = url.searchParams.get('q') ?? '';
 let notice = url.searchParams.get('notice') || '';
 let error = url.searchParams.get('error') || '';
@@ -26,12 +26,12 @@ if (Astro.request.method === 'POST') {
     error = 'Enter a valid registration.';
   } else {
     const existingCustomer =
-      (customerId ? getCustomer(customerId) : null) || findExistingCustomer({ phone, email, name });
+      (customerId ? await getCustomer(customerId) : null) || (await findExistingCustomer({ phone, email, name }));
     let ownerId = existingCustomer?.id ?? '';
     if (!ownerId && name.length >= 2 && phone.length >= 10) {
-      ownerId = createCustomer({ name, phone, email }).id;
+      ownerId = (await createCustomer({ name, phone, email })).id;
     }
-    const vehicle = createVehicle({
+    const vehicle = await createVehicle({
       vrm,
       make_model: makeModel,
       engine,
@@ -46,7 +46,7 @@ if (Astro.request.method === 'POST') {
   }
 }
 
-const vehicles = searchVehicles(q);
+const vehicles = await searchVehicles(q);
 ---
 
 <AdminLayout title="Vehicles | Bankside MOT & Repair" notice={notice} error={error}>

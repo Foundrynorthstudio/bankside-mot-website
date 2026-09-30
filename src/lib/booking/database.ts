@@ -1,19 +1,182 @@
 import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import postgres from 'postgres';
+import { env } from './config';
 import { nextId } from './ids';
+import schemaSql from './schema.sql?raw';
+
+type Row = Record<string, unknown>;
 
 const onNetlify = Boolean(process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME);
-const dbPath = onNetlify ? '/tmp/bankside-bookings.db' : resolve(process.cwd(), 'data/bookings.db');
+const sqlitePath = onNetlify ? '/tmp/bankside-bookings.db' : resolve(process.cwd(), 'data/bookings.db');
 
-let db: DatabaseSync | undefined;
+let sqlite: DatabaseSync | undefined;
+let pg: postgres.Sql | undefined;
+let migrated = false;
+
+export class UniqueViolationError extends Error {
+  constructor(
+    readonly constraint = '',
+    message = 'unique_violation',
+  ) {
+    super(message);
+    this.name = 'UniqueViolationError';
+  }
+}
+
+export function databaseUrl() {
+  return env('DATABASE_URL', env('SUPABASE_DB_URL'));
+}
+
+export function isPostgres() {
+  return databaseUrl().length > 0;
+}
+
+export function ciEq(column: string, placeholder: string) {
+  return isPostgres() ? `lower(${column}) = lower(${placeholder})` : `${column} = ${placeholder} COLLATE NOCASE`;
+}
+
+export function ciLike(column: string, placeholder: string) {
+  return isPostgres() ? `${column} ILIKE ${placeholder}` : `${column} LIKE ${placeholder} COLLATE NOCASE`;
+}
+
+export function stringAgg(expr: string) {
+  return isPostgres() ? `string_agg(${expr}, ', ')` : `group_concat(${expr}, ', ')`;
+}
+
+function sqliteQuery(text: string, params: unknown[]) {
+  const values: unknown[] = [];
+  const sql = text.replace(/\$(\d+)/g, (_match, n: string) => {
+    values.push(params[Number(n) - 1]);
+    return '?';
+  });
+  return { sql, values };
+}
+
+function isUniqueError(error: unknown) {
+  if (error instanceof UniqueViolationError) return true;
+  if (error && typeof error === 'object' && 'code' in error && (error as { code?: string }).code === '23505') {
+    return true;
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  return /unique/i.test(message);
+}
+
+function uniqueConstraint(error: unknown) {
+  if (error && typeof error === 'object') {
+    const record = error as { constraint_name?: string; constraint?: string };
+    return record.constraint_name || record.constraint || '';
+  }
+  return '';
+}
+
+function toUniqueError(error: unknown) {
+  if (error instanceof UniqueViolationError) return error;
+  if (isUniqueError(error)) {
+    const message = error instanceof Error ? error.message : String(error);
+    return new UniqueViolationError(uniqueConstraint(error), message);
+  }
+  return error instanceof Error ? error : new Error(String(error));
+}
+
+function getSqlite() {
+  if (!sqlite) {
+    mkdirSync(dirname(sqlitePath), { recursive: true });
+    sqlite = new DatabaseSync(sqlitePath);
+    migrateSqlite(sqlite);
+  }
+  return sqlite;
+}
+
+function getPg() {
+  if (!pg) {
+    const url = databaseUrl();
+    const local = /localhost|127\.0\.0\.1/i.test(url);
+    pg = postgres(url, {
+      max: 1,
+      prepare: false,
+      idle_timeout: 20,
+      connect_timeout: 10,
+      ssl: local ? false : 'require',
+    });
+  }
+  return pg;
+}
+
+function schemaStatements(sql: string) {
+  return sql
+    .split(';')
+    .map((part) =>
+      part
+        .split('\n')
+        .filter((line) => !line.trim().startsWith('--'))
+        .join('\n')
+        .trim(),
+    )
+    .filter(Boolean);
+}
+
+async function migratePostgres() {
+  if (migrated) return;
+  const client = getPg();
+  for (const statement of schemaStatements(schemaSql)) {
+    await client.unsafe(statement);
+  }
+  migrated = true;
+}
+
+export async function sqlAll<T = Row>(text: string, params: unknown[] = []): Promise<T[]> {
+  if (isPostgres()) {
+    await migratePostgres();
+    try {
+      const rows = await getPg().unsafe(text, params as never[]);
+      return rows as unknown as T[];
+    } catch (error) {
+      throw toUniqueError(error);
+    }
+  }
+  try {
+    const query = sqliteQuery(text, params);
+    return getSqlite().prepare(query.sql).all(...query.values) as T[];
+  } catch (error) {
+    throw toUniqueError(error);
+  }
+}
+
+export async function sqlGet<T = Row>(text: string, params: unknown[] = []): Promise<T | undefined> {
+  const rows = await sqlAll<T>(text, params);
+  return rows[0];
+}
+
+export async function sqlRun(text: string, params: unknown[] = []): Promise<{ changes: number }> {
+  if (process.env.AWS_LAMBDA_FUNCTION_NAME && !isPostgres()) {
+    throw new Error('DATABASE_URL is not set. Live bookings need the Supabase connection string.');
+  }
+  if (isPostgres()) {
+    await migratePostgres();
+    try {
+      const result = await getPg().unsafe(text, params as never[]);
+      return { changes: result.count ?? 0 };
+    } catch (error) {
+      throw toUniqueError(error);
+    }
+  }
+  try {
+    const query = sqliteQuery(text, params);
+    const result = getSqlite().prepare(query.sql).run(...query.values);
+    return { changes: Number(result.changes ?? 0) };
+  } catch (error) {
+    throw toUniqueError(error);
+  }
+}
 
 function columnNames(database: DatabaseSync, table: string) {
   const rows = database.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
   return rows.map((row) => row.name);
 }
 
-function migrate(database: DatabaseSync) {
+function migrateSqlite(database: DatabaseSync) {
   database.exec(`
     CREATE TABLE IF NOT EXISTS bookings (
       id TEXT PRIMARY KEY,
@@ -188,13 +351,4 @@ function migrateLegacyVehicles(database: DatabaseSync) {
       .prepare('INSERT OR IGNORE INTO customer_vehicle_links (customer_id, vehicle_id) VALUES (?, ?)')
       .run(customerId, vehicle.id);
   }
-}
-
-export function getDb() {
-  if (!db) {
-    mkdirSync(dirname(dbPath), { recursive: true });
-    db = new DatabaseSync(dbPath);
-    migrate(db);
-  }
-  return db;
 }

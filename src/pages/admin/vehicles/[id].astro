@@ -37,7 +37,7 @@ if (Astro.request.method === 'POST') {
   };
 
   if (action === 'update') {
-    updateVehicle(id, {
+    await updateVehicle(id, {
       make_model: String(form.get('make_model') ?? '').trim(),
       engine: String(form.get('engine') ?? '').trim(),
       notes: String(form.get('notes') ?? '').trim(),
@@ -51,33 +51,33 @@ if (Astro.request.method === 'POST') {
     const name = String(form.get('name') ?? '').trim();
     const email = String(form.get('email') ?? '').trim().toLowerCase();
     let customer =
-      (customerId ? getCustomer(customerId) : null) || findExistingCustomer({ phone, email, name });
+      (customerId ? await getCustomer(customerId) : null) || (await findExistingCustomer({ phone, email, name }));
     if (!customer && name.length >= 2 && phone.length >= 10) {
-      customer = createCustomer({ name, phone, email });
+      customer = await createCustomer({ name, phone, email });
     }
     if (!customer) {
       return returnTo({ error: 'Find an existing customer by name, phone or email, or enter a name and phone to create one.' });
     }
-    linkCustomerToVehicle(customer.id, id);
+    await linkCustomerToVehicle(customer.id, id);
     return returnTo({ notice: `${customer.name} assigned to this vehicle.` });
   }
 
   if (action === 'unlink_customer') {
     const customerId = String(form.get('customer_id') ?? '');
     if (!customerId) return returnTo({ error: 'Choose a customer to unlink.' });
-    unlinkCustomerFromVehicle(customerId, id);
+    await unlinkCustomerFromVehicle(customerId, id);
     return returnTo({ notice: 'Customer unlinked from this vehicle.' });
   }
 }
 
-const vehicle = getVehicle(id);
+const vehicle = await getVehicle(id);
 if (!vehicle) {
   return Astro.redirect('/admin/vehicles?error=' + encodeURIComponent('Vehicle not found.'));
 }
 
-const owners = listVehicleOwners(vehicle.id);
-const visits = listVehicleBookings(vehicle.id);
-const jobs = listVehicleJobs(vehicle.id);
+const owners = await listVehicleOwners(vehicle.id);
+const visits = await listVehicleBookings(vehicle.id);
+const jobs = await listVehicleJobs(vehicle.id);
 
 function statusClass(status: string) {
   if (status === 'Paid') return 'bg-emerald-50 text-emerald-800';

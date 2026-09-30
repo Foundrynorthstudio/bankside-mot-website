@@ -46,12 +46,12 @@ if (Astro.request.method === 'POST') {
     if (name.length < 2 || phone.length < 10) {
       return returnTo({ error: 'Name and a valid phone number are required.' });
     }
-    updateCustomer(id, { name, phone, email, profile_notes: profileNotes });
+    await updateCustomer(id, { name, phone, email, profile_notes: profileNotes });
     return returnTo({ notice: 'Customer details updated.' });
   }
 
   if (action === 'note') {
-    const note = addCustomerNote(id, String(form.get('body') ?? ''));
+    const note = await addCustomerNote(id, String(form.get('body') ?? ''));
     if (!note) return returnTo({ error: 'Write a note before saving.' });
     return returnTo({ notice: 'Note added.' });
   }
@@ -59,14 +59,14 @@ if (Astro.request.method === 'POST') {
   if (action === 'vehicle') {
     const vrm = normaliseVrm(String(form.get('vrm') ?? ''));
     if (vrm.length < 2) return returnTo({ error: 'Enter a valid registration.' });
-    addCustomerVehicle(id, vrm, String(form.get('make_model') ?? '').trim(), String(form.get('engine') ?? '').trim());
+    await addCustomerVehicle(id, vrm, String(form.get('make_model') ?? '').trim(), String(form.get('engine') ?? '').trim());
     return returnTo({ notice: `${vrm} assigned to this customer.` });
   }
 
   if (action === 'unlink_vehicle') {
     const vehicleId = String(form.get('vehicle_id') ?? '');
     if (!vehicleId) return returnTo({ error: 'Choose a vehicle to unlink.' });
-    unlinkCustomerFromVehicle(id, vehicleId);
+    await unlinkCustomerFromVehicle(id, vehicleId);
     return returnTo({ notice: 'Vehicle unlinked from this customer.' });
   }
 
@@ -74,7 +74,7 @@ if (Astro.request.method === 'POST') {
     const fields = parseJobForm(form);
     const invalid = validateJobFields(fields);
     if (invalid) return returnTo({ error: invalid });
-    createJob({
+    await createJob({
       customer_id: id,
       ...fields,
     });
@@ -83,22 +83,22 @@ if (Astro.request.method === 'POST') {
 
   if (action === 'pay') {
     const jobId = String(form.get('job_id') ?? '');
-    const paid = recordJobPayment(jobId, String(form.get('amount') ?? ''), String(form.get('payment_method') ?? ''));
+    const paid = await recordJobPayment(jobId, String(form.get('amount') ?? ''), String(form.get('payment_method') ?? ''));
     if (!paid) return returnTo({ error: 'Could not record that payment.' });
     return returnTo({ notice: `Payment recorded on ${paid.id}.` });
   }
 }
 
-const customer = getCustomer(id);
+const customer = await getCustomer(id);
 if (!customer) {
   return Astro.redirect('/admin/customers?error=' + encodeURIComponent('Customer not found.'));
 }
 
-const vehicles = listCustomerVehicles(customer.id);
-const notes = listCustomerNotes(customer.id);
-const visits = listCustomerBookings(customer.id);
-const jobs = listCustomerJobs(customer.id);
-const totals = customerJobTotals(customer.id);
+const vehicles = await listCustomerVehicles(customer.id);
+const notes = await listCustomerNotes(customer.id);
+const visits = await listCustomerBookings(customer.id);
+const jobs = await listCustomerJobs(customer.id);
+const totals = await customerJobTotals(customer.id);
 
 function statusClass(status: string) {
   if (status === 'Paid') return 'bg-emerald-50 text-emerald-800';

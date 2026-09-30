@@ -1,4 +1,4 @@
-import { getDb } from './database';
+import { ciLike, sqlAll, sqlGet, sqlRun, stringAgg } from './database';
 import { nextId } from './ids';
 
 export type Vehicle = {
@@ -35,43 +35,41 @@ function mapVehicle(row: Record<string, unknown>): Vehicle {
   };
 }
 
-function touchCustomer(customerId: string) {
-  getDb().prepare('UPDATE customers SET updated_at = ? WHERE id = ?').run(new Date().toISOString(), customerId);
+async function touchCustomer(customerId: string) {
+  await sqlRun('UPDATE customers SET updated_at = $1 WHERE id = $2', [new Date().toISOString(), customerId]);
 }
 
-export function getVehicle(id: string) {
-  const row = getDb().prepare('SELECT * FROM vehicles WHERE id = ?').get(id) as Record<string, unknown> | undefined;
+export async function getVehicle(id: string) {
+  const row = await sqlGet('SELECT * FROM vehicles WHERE id = $1', [id]);
   return row ? mapVehicle(row) : null;
 }
 
-export function getVehicleByVrm(vrm: string) {
+export async function getVehicleByVrm(vrm: string) {
   if (!vrm || vrm === 'BLOCKED') return null;
-  const row = getDb().prepare('SELECT * FROM vehicles WHERE vrm = ?').get(vrm) as Record<string, unknown> | undefined;
+  const row = await sqlGet('SELECT * FROM vehicles WHERE vrm = $1', [vrm]);
   return row ? mapVehicle(row) : null;
 }
 
-export function listCustomerVehicles(customerId: string) {
-  const rows = getDb()
-    .prepare(
-      `SELECT v.* FROM vehicles v
-       INNER JOIN customer_vehicle_links l ON l.vehicle_id = v.id
-       WHERE l.customer_id = ?
-       ORDER BY v.vrm ASC`,
-    )
-    .all(customerId) as Record<string, unknown>[];
+export async function listCustomerVehicles(customerId: string) {
+  const rows = await sqlAll(
+    `SELECT v.* FROM vehicles v
+     INNER JOIN customer_vehicle_links l ON l.vehicle_id = v.id
+     WHERE l.customer_id = $1
+     ORDER BY v.vrm ASC`,
+    [customerId],
+  );
   return rows.map(mapVehicle);
 }
 
-export function listVehicleOwners(vehicleId: string) {
-  const rows = getDb()
-    .prepare(
-      `SELECT c.id, c.name, c.phone, c.email
-       FROM customers c
-       INNER JOIN customer_vehicle_links l ON l.customer_id = c.id
-       WHERE l.vehicle_id = ?
-       ORDER BY c.name COLLATE NOCASE ASC`,
-    )
-    .all(vehicleId) as Record<string, unknown>[];
+export async function listVehicleOwners(vehicleId: string) {
+  const rows = await sqlAll(
+    `SELECT c.id, c.name, c.phone, c.email
+     FROM customers c
+     INNER JOIN customer_vehicle_links l ON l.customer_id = c.id
+     WHERE l.vehicle_id = $1
+     ORDER BY lower(c.name) ASC`,
+    [vehicleId],
+  );
   return rows.map(
     (row) =>
       ({
@@ -83,14 +81,13 @@ export function listVehicleOwners(vehicleId: string) {
   );
 }
 
-export function listVehicleBookings(vehicleId: string) {
-  const rows = getDb()
-    .prepare(
-      `SELECT b.* FROM bookings b
-       WHERE b.vehicle_id = ? OR b.vrm = (SELECT vrm FROM vehicles WHERE id = ?)
-       ORDER BY b.date DESC, b.time DESC`,
-    )
-    .all(vehicleId, vehicleId) as Record<string, unknown>[];
+export async function listVehicleBookings(vehicleId: string) {
+  const rows = await sqlAll(
+    `SELECT b.* FROM bookings b
+     WHERE b.vehicle_id = $1 OR b.vrm = (SELECT vrm FROM vehicles WHERE id = $2)
+     ORDER BY b.date DESC, b.time DESC`,
+    [vehicleId, vehicleId],
+  );
   return rows.map((row) => ({
     id: String(row.id),
     date: String(row.date),
@@ -104,109 +101,114 @@ export function listVehicleBookings(vehicleId: string) {
   }));
 }
 
-export function linkCustomerToVehicle(customerId: string, vehicleId: string) {
-  getDb()
-    .prepare('INSERT OR IGNORE INTO customer_vehicle_links (customer_id, vehicle_id) VALUES (?, ?)')
-    .run(customerId, vehicleId);
-  touchCustomer(customerId);
+export async function linkCustomerToVehicle(customerId: string, vehicleId: string) {
+  await sqlRun('INSERT INTO customer_vehicle_links (customer_id, vehicle_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [
+    customerId,
+    vehicleId,
+  ]);
+  await touchCustomer(customerId);
 }
 
-export function unlinkCustomerFromVehicle(customerId: string, vehicleId: string) {
-  getDb().prepare('DELETE FROM customer_vehicle_links WHERE customer_id = ? AND vehicle_id = ?').run(customerId, vehicleId);
-  touchCustomer(customerId);
+export async function unlinkCustomerFromVehicle(customerId: string, vehicleId: string) {
+  await sqlRun('DELETE FROM customer_vehicle_links WHERE customer_id = $1 AND vehicle_id = $2', [
+    customerId,
+    vehicleId,
+  ]);
+  await touchCustomer(customerId);
 }
 
-export function upsertVehicleForCustomer(
-  customerId: string,
-  vrm: string,
-  makeModel = '',
-  engine = '',
-) {
+export async function upsertVehicleForCustomer(customerId: string, vrm: string, makeModel = '', engine = '') {
   if (!vrm || vrm === 'BLOCKED') return null;
   const now = new Date().toISOString();
-  const database = getDb();
-  let vehicle = getVehicleByVrm(vrm);
+  let vehicle = await getVehicleByVrm(vrm);
 
   if (!vehicle) {
     const id = nextId('VEH');
-    database
-      .prepare(
-        `INSERT INTO vehicles (id, created_at, updated_at, vrm, make_model, engine, notes)
-         VALUES (?, ?, ?, ?, ?, ?, '')`,
-      )
-      .run(id, now, now, vrm, makeModel, engine);
-    vehicle = getVehicle(id);
+    await sqlRun(
+      `INSERT INTO vehicles (id, created_at, updated_at, vrm, make_model, engine, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, '')`,
+      [id, now, now, vrm, makeModel, engine],
+    );
+    vehicle = await getVehicle(id);
   } else if (makeModel || engine) {
-    database
-      .prepare(
-        `UPDATE vehicles
-         SET make_model = CASE WHEN length(?) > 0 THEN ? ELSE make_model END,
-             engine = CASE WHEN length(?) > 0 THEN ? ELSE engine END,
-             updated_at = ?
-         WHERE id = ?`,
-      )
-      .run(makeModel, makeModel, engine, engine, now, vehicle.id);
-    vehicle = getVehicle(vehicle.id);
+    await sqlRun(
+      `UPDATE vehicles
+       SET make_model = CASE WHEN length($1) > 0 THEN $1 ELSE make_model END,
+           engine = CASE WHEN length($2) > 0 THEN $2 ELSE engine END,
+           updated_at = $3
+       WHERE id = $4`,
+      [makeModel, engine, now, vehicle.id],
+    );
+    vehicle = await getVehicle(vehicle.id);
   }
 
-  if (vehicle) linkCustomerToVehicle(customerId, vehicle.id);
+  if (vehicle) await linkCustomerToVehicle(customerId, vehicle.id);
   return vehicle;
 }
 
-export function createVehicle(input: { vrm: string; make_model?: string; engine?: string; notes?: string; customer_id?: string }) {
-  const existing = getVehicleByVrm(input.vrm);
+export async function createVehicle(input: {
+  vrm: string;
+  make_model?: string;
+  engine?: string;
+  notes?: string;
+  customer_id?: string;
+}) {
+  const existing = await getVehicleByVrm(input.vrm);
   if (existing) {
-    if (input.customer_id) linkCustomerToVehicle(input.customer_id, existing.id);
+    if (input.customer_id) await linkCustomerToVehicle(input.customer_id, existing.id);
     if (input.make_model || input.engine || input.notes) {
-      updateVehicle(existing.id, {
+      await updateVehicle(existing.id, {
         make_model: input.make_model ?? existing.make_model,
         engine: input.engine ?? existing.engine,
         notes: input.notes ?? existing.notes,
       });
     }
-    return getVehicle(existing.id)!;
+    return (await getVehicle(existing.id))!;
   }
   const now = new Date().toISOString();
   const id = nextId('VEH');
-  getDb()
-    .prepare(
-      `INSERT INTO vehicles (id, created_at, updated_at, vrm, make_model, engine, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(id, now, now, input.vrm, input.make_model ?? '', input.engine ?? '', input.notes ?? '');
-  if (input.customer_id) linkCustomerToVehicle(input.customer_id, id);
-  return getVehicle(id)!;
+  await sqlRun(
+    `INSERT INTO vehicles (id, created_at, updated_at, vrm, make_model, engine, notes)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [id, now, now, input.vrm, input.make_model ?? '', input.engine ?? '', input.notes ?? ''],
+  );
+  if (input.customer_id) await linkCustomerToVehicle(input.customer_id, id);
+  return (await getVehicle(id))!;
 }
 
-export function updateVehicle(id: string, input: { make_model: string; engine: string; notes: string }) {
+export async function updateVehicle(id: string, input: { make_model: string; engine: string; notes: string }) {
   const now = new Date().toISOString();
-  const result = getDb()
-    .prepare(`UPDATE vehicles SET make_model = ?, engine = ?, notes = ?, updated_at = ? WHERE id = ?`)
-    .run(input.make_model, input.engine, input.notes, now, id);
+  const result = await sqlRun(`UPDATE vehicles SET make_model = $1, engine = $2, notes = $3, updated_at = $4 WHERE id = $5`, [
+    input.make_model,
+    input.engine,
+    input.notes,
+    now,
+    id,
+  ]);
   if (result.changes === 0) return null;
   return getVehicle(id);
 }
 
-export function searchVehicles(query: string) {
+export async function searchVehicles(query: string) {
   const trimmed = query.trim();
   const like = `%${trimmed.replace(/\s+/g, '%')}%`;
   const compact = `%${trimmed.toUpperCase().replace(/[^A-Z0-9]/g, '')}%`;
 
-  const ownerSelect = `COALESCE((SELECT GROUP_CONCAT(c.name, ', ') FROM customer_vehicle_links l INNER JOIN customers c ON c.id = l.customer_id WHERE l.vehicle_id = v.id), '')`;
+  const ownerSelect = `COALESCE((SELECT ${stringAgg('c.name')} FROM customer_vehicle_links l INNER JOIN customers c ON c.id = l.customer_id WHERE l.vehicle_id = v.id), '')`;
   const ownerCount = `(SELECT COUNT(*) FROM customer_vehicle_links l WHERE l.vehicle_id = v.id)`;
 
   const sql = trimmed
     ? `SELECT v.*, ${ownerSelect} AS owners, ${ownerCount} AS owner_count
        FROM vehicles v
-       WHERE v.vrm LIKE ?
-          OR v.make_model LIKE ? COLLATE NOCASE
-          OR v.engine LIKE ? COLLATE NOCASE
-          OR v.notes LIKE ? COLLATE NOCASE
+       WHERE v.vrm LIKE $1
+          OR ${ciLike('v.make_model', '$2')}
+          OR ${ciLike('v.engine', '$3')}
+          OR ${ciLike('v.notes', '$4')}
           OR EXISTS (
             SELECT 1 FROM customer_vehicle_links l
             INNER JOIN customers c ON c.id = l.customer_id
             WHERE l.vehicle_id = v.id
-              AND (c.name LIKE ? COLLATE NOCASE OR c.phone LIKE ? OR c.email LIKE ? COLLATE NOCASE)
+              AND (${ciLike('c.name', '$5')} OR c.phone LIKE $6 OR ${ciLike('c.email', '$7')})
           )
        ORDER BY v.updated_at DESC
        LIMIT 75`
@@ -215,9 +217,7 @@ export function searchVehicles(query: string) {
        ORDER BY v.updated_at DESC
        LIMIT 75`;
 
-  const rows = (
-    trimmed ? getDb().prepare(sql).all(compact, like, like, like, like, like, like) : getDb().prepare(sql).all()
-  ) as Record<string, unknown>[];
+  const rows = trimmed ? await sqlAll(sql, [compact, like, like, like, like, like, like]) : await sqlAll(sql);
 
   return rows.map((row) => ({
     ...mapVehicle(row),

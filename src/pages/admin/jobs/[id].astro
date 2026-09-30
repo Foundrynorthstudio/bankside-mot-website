@@ -30,25 +30,25 @@ if (Astro.request.method === 'POST') {
     const fields = parseJobForm(form);
     const invalid = validateJobFields(fields);
     if (invalid) return returnTo({ error: invalid });
-    const updated = updateJob(id, fields);
+    const updated = await updateJob(id, fields);
     if (!updated) return returnTo({ error: 'Could not update this job.' });
     return returnTo({ notice: 'Job details updated.' });
   }
 
   if (action === 'pay') {
-    const paid = recordJobPayment(id, String(form.get('amount') ?? ''), String(form.get('payment_method') ?? ''));
+    const paid = await recordJobPayment(id, String(form.get('amount') ?? ''), String(form.get('payment_method') ?? ''));
     if (!paid) return returnTo({ error: 'Could not record that payment.' });
     return returnTo({ notice: 'Payment recorded.' });
   }
 }
 
-const job = getJob(id);
+const job = await getJob(id);
 if (!job) {
   return Astro.redirect('/admin/customers?error=' + encodeURIComponent('Job not found.'));
 }
 
-const customer = getCustomer(job.customer_id);
-const vehicles = listCustomerVehicles(job.customer_id);
+const customer = await getCustomer(job.customer_id);
+const vehicles = await listCustomerVehicles(job.customer_id);
 const summary = jobSummary(job);
 const currentVehicleMissing = Boolean(job.vehicle_id && !vehicles.some((vehicle) => vehicle.id === job.vehicle_id));
 

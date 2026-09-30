@@ -3,7 +3,7 @@ import { searchBookingDirectory } from '../../../lib/booking/directory';
 
 export const prerender = false;
 
-export const GET: APIRoute = ({ url }) => {
+export const GET: APIRoute = async ({ url }) => {
   const query = url.searchParams.get('q') ?? '';
-  return Response.json({ matches: searchBookingDirectory(query) });
+  return Response.json({ matches: await searchBookingDirectory(query) });
 };

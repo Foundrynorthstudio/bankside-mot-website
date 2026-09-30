@@ -5,7 +5,7 @@ import { slotsForService } from '../../lib/booking/slots';
 
 export const prerender = false;
 
-export const GET: APIRoute = ({ url }) => {
+export const GET: APIRoute = async ({ url }) => {
   const date = url.searchParams.get('date') ?? todayISO();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return Response.json({ error: 'Invalid date.' }, { status: 400 });
@@ -18,5 +18,5 @@ export const GET: APIRoute = ({ url }) => {
   if (!service) {
     return Response.json({ error: 'Choose a service.' }, { status: 400 });
   }
-  return Response.json({ date, diary: diaryForService(service), slots: slotsForService(date, service) });
+  return Response.json({ date, diary: diaryForService(service), slots: await slotsForService(date, service) });
 };

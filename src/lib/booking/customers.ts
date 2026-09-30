@@ -1,4 +1,4 @@
-import { getDb } from './database';
+import { ciEq, ciLike, isPostgres, sqlAll, sqlGet, sqlRun, stringAgg } from './database';
 import { nextId } from './ids';
 import { listCustomerVehicles, upsertVehicleForCustomer } from './vehicles';
 
@@ -38,15 +38,15 @@ function mapCustomer(row: Record<string, unknown>): Customer {
   };
 }
 
-export function getCustomer(id: string) {
-  const row = getDb().prepare('SELECT * FROM customers WHERE id = ?').get(id) as Record<string, unknown> | undefined;
+export async function getCustomer(id: string) {
+  const row = await sqlGet('SELECT * FROM customers WHERE id = $1', [id]);
   return row ? mapCustomer(row) : null;
 }
 
-export function listCustomerNotes(customerId: string) {
-  const rows = getDb()
-    .prepare('SELECT * FROM customer_notes WHERE customer_id = ? ORDER BY created_at DESC')
-    .all(customerId) as Record<string, unknown>[];
+export async function listCustomerNotes(customerId: string) {
+  const rows = await sqlAll('SELECT * FROM customer_notes WHERE customer_id = $1 ORDER BY created_at DESC', [
+    customerId,
+  ]);
   return rows.map((row) => ({
     id: String(row.id),
     customer_id: String(row.customer_id),
@@ -55,14 +55,13 @@ export function listCustomerNotes(customerId: string) {
   })) satisfies CustomerNote[];
 }
 
-export function listCustomerBookings(customerId: string) {
-  const rows = getDb()
-    .prepare(
-      `SELECT * FROM bookings
-       WHERE customer_id = ?
-       ORDER BY date DESC, time DESC`,
-    )
-    .all(customerId) as Record<string, unknown>[];
+export async function listCustomerBookings(customerId: string) {
+  const rows = await sqlAll(
+    `SELECT * FROM bookings
+     WHERE customer_id = $1
+     ORDER BY date DESC, time DESC`,
+    [customerId],
+  );
   return rows.map((row) => ({
     id: String(row.id),
     date: String(row.date),
@@ -93,59 +92,61 @@ function phoneLookupKeys(phone: string) {
   return [...keys];
 }
 
-export function findCustomerByPhone(phone: string) {
+export async function findCustomerByPhone(phone: string) {
   if (!phone) return null;
-  const database = getDb();
   for (const key of phoneLookupKeys(phone)) {
-    const row = database.prepare('SELECT * FROM customers WHERE phone = ? LIMIT 1').get(key) as Record<string, unknown> | undefined;
+    const row = await sqlGet('SELECT * FROM customers WHERE phone = $1 LIMIT 1', [key]);
     if (row) return mapCustomer(row);
   }
   const digits = phone.replace(/\D/g, '');
   const tail = digits.slice(-10);
   if (tail.length < 10) return null;
-  const row = database
-    .prepare(
-      `SELECT * FROM customers
-       WHERE length(phone) > 0
-         AND substr(replace(replace(replace(replace(replace(phone, '+', ''), ' ', ''), '-', ''), '(', ''), ')', ''), -10) = ?
-       LIMIT 1`,
-    )
-    .get(tail) as Record<string, unknown> | undefined;
+  const row = isPostgres()
+    ? await sqlGet(
+        `SELECT * FROM customers
+         WHERE length(phone) > 0
+           AND right(regexp_replace(phone, '[^0-9]', '', 'g'), 10) = $1
+         LIMIT 1`,
+        [tail],
+      )
+    : await sqlGet(
+        `SELECT * FROM customers
+         WHERE length(phone) > 0
+           AND substr(replace(replace(replace(replace(replace(phone, '+', ''), ' ', ''), '-', ''), '(', ''), ')', ''), -10) = $1
+         LIMIT 1`,
+        [tail],
+      );
   return row ? mapCustomer(row) : null;
 }
 
-export function findCustomerByEmail(email: string) {
+export async function findCustomerByEmail(email: string) {
   const normalised = email.trim().toLowerCase();
   if (!normalised) return null;
-  const row = getDb().prepare('SELECT * FROM customers WHERE email = ? COLLATE NOCASE LIMIT 1').get(normalised) as
-    | Record<string, unknown>
-    | undefined;
+  const row = await sqlGet(`SELECT * FROM customers WHERE ${ciEq('email', '$1')} LIMIT 1`, [normalised]);
   return row ? mapCustomer(row) : null;
 }
 
-export function findCustomerByUniqueName(name: string) {
+export async function findCustomerByUniqueName(name: string) {
   const trimmed = name.trim();
   if (trimmed.length < 3 || !/\s/.test(trimmed)) return null;
-  const rows = getDb()
-    .prepare('SELECT * FROM customers WHERE name = ? COLLATE NOCASE')
-    .all(trimmed) as Record<string, unknown>[];
+  const rows = await sqlAll(`SELECT * FROM customers WHERE ${ciEq('name', '$1')}`, [trimmed]);
   if (rows.length !== 1) return null;
   return mapCustomer(rows[0]);
 }
 
-export function findExistingCustomer(input: { id?: string; phone?: string; email?: string; name?: string }) {
+export async function findExistingCustomer(input: { id?: string; phone?: string; email?: string; name?: string }) {
   if (input.id) {
-    const byId = getCustomer(input.id);
+    const byId = await getCustomer(input.id);
     if (byId) return byId;
   }
   return (
-    findCustomerByPhone(input.phone ?? '') ||
-    findCustomerByEmail(input.email ?? '') ||
-    findCustomerByUniqueName(input.name ?? '')
+    (await findCustomerByPhone(input.phone ?? '')) ||
+    (await findCustomerByEmail(input.email ?? '')) ||
+    (await findCustomerByUniqueName(input.name ?? ''))
   );
 }
 
-export function upsertCustomerFromBooking(input: {
+export async function upsertCustomerFromBooking(input: {
   name: string;
   phone: string;
   email?: string;
@@ -155,49 +156,43 @@ export function upsertCustomerFromBooking(input: {
 }) {
   if (!input.vrm || input.vrm === 'BLOCKED') return { customer: null, vehicle: null };
 
-  const existing = findExistingCustomer({ phone: input.phone, email: input.email, name: input.name });
-
+  const existing = await findExistingCustomer({ phone: input.phone, email: input.email, name: input.name });
   const now = new Date().toISOString();
-  const database = getDb();
 
   if (existing) {
-    database
-      .prepare(
-        `UPDATE customers
-         SET name = ?, phone = CASE WHEN length(?) > 0 THEN ? ELSE phone END,
-             email = CASE WHEN length(?) > 0 THEN ? ELSE email END,
-             updated_at = ?
-         WHERE id = ?`,
-      )
-      .run(input.name, input.phone, input.phone, input.email ?? '', input.email ?? '', now, existing.id);
-    const vehicle = upsertVehicleForCustomer(existing.id, input.vrm, input.vehicle_make_model, input.vehicle_engine);
-    return { customer: getCustomer(existing.id), vehicle };
+    await sqlRun(
+      `UPDATE customers
+       SET name = $1, phone = CASE WHEN length($2) > 0 THEN $2 ELSE phone END,
+           email = CASE WHEN length($3) > 0 THEN $3 ELSE email END,
+           updated_at = $4
+       WHERE id = $5`,
+      [input.name, input.phone, input.email ?? '', now, existing.id],
+    );
+    const vehicle = await upsertVehicleForCustomer(existing.id, input.vrm, input.vehicle_make_model, input.vehicle_engine);
+    return { customer: await getCustomer(existing.id), vehicle };
   }
 
   const id = nextId('CUS');
-  database
-    .prepare(
-      `INSERT INTO customers (id, created_at, updated_at, name, phone, email, profile_notes)
-       VALUES (?, ?, ?, ?, ?, ?, '')`,
-    )
-    .run(id, now, now, input.name, input.phone, input.email ?? '');
-  const vehicle = upsertVehicleForCustomer(id, input.vrm, input.vehicle_make_model, input.vehicle_engine);
-  return { customer: getCustomer(id), vehicle };
+  await sqlRun(
+    `INSERT INTO customers (id, created_at, updated_at, name, phone, email, profile_notes)
+     VALUES ($1, $2, $3, $4, $5, $6, '')`,
+    [id, now, now, input.name, input.phone, input.email ?? ''],
+  );
+  const vehicle = await upsertVehicleForCustomer(id, input.vrm, input.vehicle_make_model, input.vehicle_engine);
+  return { customer: await getCustomer(id), vehicle };
 }
 
-export function backfillCustomersFromBookings() {
-  const rows = getDb()
-    .prepare(
-      `SELECT * FROM bookings
-       WHERE status != 'blocked'
-         AND vrm != 'BLOCKED'
-         AND (customer_id IS NULL OR length(customer_id) = 0)
-       ORDER BY created_at ASC`,
-    )
-    .all() as Record<string, unknown>[];
+export async function backfillCustomersFromBookings() {
+  const rows = await sqlAll(
+    `SELECT * FROM bookings
+     WHERE status != 'blocked'
+       AND vrm != 'BLOCKED'
+       AND (customer_id IS NULL OR length(customer_id) = 0)
+     ORDER BY created_at ASC`,
+  );
 
   for (const row of rows) {
-    const { customer, vehicle } = upsertCustomerFromBooking({
+    const { customer, vehicle } = await upsertCustomerFromBooking({
       name: String(row.customer_name),
       phone: String(row.customer_phone),
       email: String(row.customer_email ?? ''),
@@ -206,41 +201,43 @@ export function backfillCustomersFromBookings() {
       vehicle_engine: String(row.vehicle_engine ?? ''),
     });
     if (customer) {
-      getDb()
-        .prepare('UPDATE bookings SET customer_id = ?, vehicle_id = ? WHERE id = ?')
-        .run(customer.id, vehicle?.id ?? '', String(row.id));
+      await sqlRun('UPDATE bookings SET customer_id = $1, vehicle_id = $2 WHERE id = $3', [
+        customer.id,
+        vehicle?.id ?? '',
+        String(row.id),
+      ]);
     }
   }
 }
 
-export function searchCustomers(query: string) {
-  backfillCustomersFromBookings();
+export async function searchCustomers(query: string) {
+  await backfillCustomersFromBookings();
   const trimmed = query.trim();
   const like = `%${trimmed.replace(/\s+/g, '%')}%`;
   const compact = `%${trimmed.toUpperCase().replace(/[^A-Z0-9+]/g, '')}%`;
-  const vrmsSelect = `COALESCE((SELECT GROUP_CONCAT(v.vrm, ', ') FROM customer_vehicle_links l INNER JOIN vehicles v ON v.id = l.vehicle_id WHERE l.customer_id = c.id), '')`;
+  const vrmsSelect = `COALESCE((SELECT ${stringAgg('v.vrm')} FROM customer_vehicle_links l INNER JOIN vehicles v ON v.id = l.vehicle_id WHERE l.customer_id = c.id), '')`;
 
   const sql = trimmed
     ? `SELECT c.*,
          (SELECT COUNT(*) FROM bookings b WHERE b.customer_id = c.id AND b.status != 'blocked') AS visit_count,
          ${vrmsSelect} AS vrms
        FROM customers c
-       WHERE c.name LIKE ? COLLATE NOCASE
-          OR c.phone LIKE ?
-          OR c.email LIKE ? COLLATE NOCASE
-          OR c.profile_notes LIKE ? COLLATE NOCASE
+       WHERE ${ciLike('c.name', '$1')}
+          OR c.phone LIKE $2
+          OR ${ciLike('c.email', '$3')}
+          OR ${ciLike('c.profile_notes', '$4')}
           OR EXISTS (
             SELECT 1 FROM customer_vehicle_links l
             INNER JOIN vehicles v ON v.id = l.vehicle_id
-            WHERE l.customer_id = c.id AND (v.vrm LIKE ? OR v.make_model LIKE ? COLLATE NOCASE)
+            WHERE l.customer_id = c.id AND (v.vrm LIKE $5 OR ${ciLike('v.make_model', '$6')})
           )
           OR EXISTS (
             SELECT 1 FROM customer_notes n
-            WHERE n.customer_id = c.id AND n.body LIKE ? COLLATE NOCASE
+            WHERE n.customer_id = c.id AND ${ciLike('n.body', '$7')}
           )
           OR EXISTS (
             SELECT 1 FROM jobs j
-            WHERE j.customer_id = c.id AND (j.description LIKE ? COLLATE NOCASE OR j.invoice_ref LIKE ? COLLATE NOCASE)
+            WHERE j.customer_id = c.id AND (${ciLike('j.description', '$8')} OR ${ciLike('j.invoice_ref', '$9')})
           )
        ORDER BY c.updated_at DESC
        LIMIT 75`
@@ -251,11 +248,7 @@ export function searchCustomers(query: string) {
        ORDER BY c.updated_at DESC
        LIMIT 75`;
 
-  const rows = (
-    trimmed
-      ? getDb().prepare(sql).all(like, like, like, like, compact, like, like, like, like)
-      : getDb().prepare(sql).all()
-  ) as Record<string, unknown>[];
+  const rows = trimmed ? await sqlAll(sql, [like, like, like, like, compact, like, like, like, like]) : await sqlAll(sql);
 
   return rows.map((row) => ({
     ...mapCustomer(row),
@@ -264,7 +257,7 @@ export function searchCustomers(query: string) {
   })) satisfies CustomerListItem[];
 }
 
-export function createCustomer(input: {
+export async function createCustomer(input: {
   id?: string;
   name: string;
   phone: string;
@@ -275,73 +268,66 @@ export function createCustomer(input: {
   profile_notes?: string;
 }) {
   const now = new Date().toISOString();
-  const existing = findExistingCustomer({
+  const existing = await findExistingCustomer({
     id: input.id,
     phone: input.phone,
     email: input.email,
     name: input.name,
   });
   if (existing) {
-    getDb()
-      .prepare(
-        `UPDATE customers
-         SET phone = CASE WHEN length(?) > 0 THEN ? ELSE phone END,
-             email = CASE WHEN length(?) > 0 THEN ? ELSE email END,
-             profile_notes = CASE WHEN length(profile_notes) = 0 AND length(?) > 0 THEN ? ELSE profile_notes END,
-             updated_at = ?
-         WHERE id = ?`,
-      )
-      .run(
-        input.phone,
-        input.phone,
-        input.email ?? '',
-        input.email ?? '',
-        input.profile_notes ?? '',
-        input.profile_notes ?? '',
-        now,
-        existing.id,
-      );
-    if (input.vrm) upsertVehicleForCustomer(existing.id, input.vrm, input.make_model, input.engine);
-    return getCustomer(existing.id)!;
+    await sqlRun(
+      `UPDATE customers
+       SET phone = CASE WHEN length($1) > 0 THEN $1 ELSE phone END,
+           email = CASE WHEN length($2) > 0 THEN $2 ELSE email END,
+           profile_notes = CASE WHEN length(profile_notes) = 0 AND length($3) > 0 THEN $3 ELSE profile_notes END,
+           updated_at = $4
+       WHERE id = $5`,
+      [input.phone, input.email ?? '', input.profile_notes ?? '', now, existing.id],
+    );
+    if (input.vrm) await upsertVehicleForCustomer(existing.id, input.vrm, input.make_model, input.engine);
+    return (await getCustomer(existing.id))!;
   }
   const id = nextId('CUS');
-  getDb()
-    .prepare(
-      `INSERT INTO customers (id, created_at, updated_at, name, phone, email, profile_notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(id, now, now, input.name, input.phone, input.email ?? '', input.profile_notes ?? '');
-  if (input.vrm) upsertVehicleForCustomer(id, input.vrm, input.make_model, input.engine);
-  return getCustomer(id)!;
+  await sqlRun(
+    `INSERT INTO customers (id, created_at, updated_at, name, phone, email, profile_notes)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [id, now, now, input.name, input.phone, input.email ?? '', input.profile_notes ?? ''],
+  );
+  if (input.vrm) await upsertVehicleForCustomer(id, input.vrm, input.make_model, input.engine);
+  return (await getCustomer(id))!;
 }
 
-export function updateCustomer(
+export async function updateCustomer(
   id: string,
   input: { name: string; phone: string; email: string; profile_notes: string },
 ) {
   const now = new Date().toISOString();
-  const result = getDb()
-    .prepare(
-      `UPDATE customers SET name = ?, phone = ?, email = ?, profile_notes = ?, updated_at = ? WHERE id = ?`,
-    )
-    .run(input.name, input.phone, input.email, input.profile_notes, now, id);
+  const result = await sqlRun(
+    `UPDATE customers SET name = $1, phone = $2, email = $3, profile_notes = $4, updated_at = $5 WHERE id = $6`,
+    [input.name, input.phone, input.email, input.profile_notes, now, id],
+  );
   if (result.changes === 0) return null;
   return getCustomer(id);
 }
 
-export function addCustomerNote(customerId: string, body: string) {
+export async function addCustomerNote(customerId: string, body: string) {
   const text = body.trim();
   if (!text) return null;
   const id = nextId('NOTE');
   const now = new Date().toISOString();
-  getDb().prepare('INSERT INTO customer_notes (id, customer_id, created_at, body) VALUES (?, ?, ?, ?)').run(id, customerId, now, text);
-  getDb().prepare('UPDATE customers SET updated_at = ? WHERE id = ?').run(now, customerId);
-  return listCustomerNotes(customerId)[0] ?? null;
+  await sqlRun('INSERT INTO customer_notes (id, customer_id, created_at, body) VALUES ($1, $2, $3, $4)', [
+    id,
+    customerId,
+    now,
+    text,
+  ]);
+  await sqlRun('UPDATE customers SET updated_at = $1 WHERE id = $2', [now, customerId]);
+  return (await listCustomerNotes(customerId))[0] ?? null;
 }
 
-export function addCustomerVehicle(customerId: string, vrm: string, makeModel = '', engine = '') {
-  const vehicle = upsertVehicleForCustomer(customerId, vrm, makeModel, engine);
-  getDb().prepare('UPDATE customers SET updated_at = ? WHERE id = ?').run(new Date().toISOString(), customerId);
+export async function addCustomerVehicle(customerId: string, vrm: string, makeModel = '', engine = '') {
+  const vehicle = await upsertVehicleForCustomer(customerId, vrm, makeModel, engine);
+  await sqlRun('UPDATE customers SET updated_at = $1 WHERE id = $2', [new Date().toISOString(), customerId]);
   return vehicle;
 }
 

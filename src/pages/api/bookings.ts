@@ -32,14 +32,14 @@ export const POST: APIRoute = async ({ request }) => {
     return Response.json({ error: errors[0], errors }, { status: 400 });
   }
 
-  const slots = slotsForService(value.date, value.service);
+  const slots = await slotsForService(value.date, value.service);
   const slot = slots.find((item) => item.time === value.time);
   if (!slot?.available) {
     return Response.json({ error: 'That time slot is no longer available.', slots }, { status: 409 });
   }
 
   try {
-    const booking = createBooking({ ...value, source: 'online', status: 'confirmed' });
+    const booking = await createBooking({ ...value, source: 'online', status: 'confirmed' });
     let emailSent = false;
     try {
       const email = await sendBookingEmails(booking);
@@ -53,11 +53,11 @@ export const POST: APIRoute = async ({ request }) => {
       ref: booking.id,
       booking,
       emailSent,
-      slots: slotsForService(value.date, value.service),
+      slots: await slotsForService(value.date, value.service),
     });
   } catch (error) {
     if (error instanceof SlotTakenError) {
-      return Response.json({ error: error.message, slots: slotsForService(value.date, value.service) }, { status: 409 });
+      return Response.json({ error: error.message, slots: await slotsForService(value.date, value.service) }, { status: 409 });
     }
     console.error(error);
     return Response.json({ error: 'Could not save the booking. Please call the garage.' }, { status: 500 });

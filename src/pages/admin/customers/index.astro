@@ -19,12 +19,12 @@ if (Astro.request.method === 'POST') {
   const vrm = normaliseVrm(String(form.get('vrm') ?? ''));
   const makeModel = String(form.get('make_model') ?? '').trim();
   const engine = String(form.get('engine') ?? '').trim();
-  const existing = findExistingCustomer({ id: customerId, phone, email, name });
+  const existing = await findExistingCustomer({ id: customerId, phone, email, name });
 
   if (name.length < 2 || phone.length < 10) {
     error = 'Name and a valid phone number are required.';
   } else {
-    const customer = createCustomer({
+    const customer = await createCustomer({
       id: existing?.id,
       name,
       phone,
@@ -42,7 +42,7 @@ if (Astro.request.method === 'POST') {
   }
 }
 
-const customers = searchCustomers(q);
+const customers = await searchCustomers(q);
 ---
 
 <AdminLayout title="Customers | Bankside MOT & Repair" notice={notice} error={error}>

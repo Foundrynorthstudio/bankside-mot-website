@@ -2,9 +2,9 @@ import { diaryById, diaryForService, isMorningDropOffService, isMorningDropOffTi
 import { formatBookingSlotLabel, formatSlotRange, isSlotInPast, isWeekday } from './dates';
 import { listBookingsOnDate } from './db';
 
-export function getSlotsForDate(date: string, diaryId: DiaryId = 'mot') {
+export async function getSlotsForDate(date: string, diaryId: DiaryId = 'mot') {
   const diary = diaryById(diaryId);
-  const booked = listBookingsOnDate(date, diaryId);
+  const booked = await listBookingsOnDate(date, diaryId);
   const takenByTime = new Map<string, number>();
   for (const booking of booked) {
     takenByTime.set(booking.time, (takenByTime.get(booking.time) ?? 0) + 1);
@@ -26,9 +26,9 @@ export function getSlotsForDate(date: string, diaryId: DiaryId = 'mot') {
   });
 }
 
-export function slotsForService(date: string, serviceName: string) {
+export async function slotsForService(date: string, serviceName: string) {
   const diaryId = diaryForService(serviceName);
-  const slots = getSlotsForDate(date, diaryId);
+  const slots = await getSlotsForDate(date, diaryId);
   if (!isMorningDropOffService(serviceName)) return slots;
   return slots
     .filter((slot) => isMorningDropOffTime(slot.time))

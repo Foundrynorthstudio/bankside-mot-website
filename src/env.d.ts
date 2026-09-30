@@ -1,5 +1,10 @@
 /// <reference types="astro/client" />
 
+declare module '*.sql?raw' {
+  const content: string;
+  export default content;
+}
+
 interface ImportMetaEnv {
   readonly PUBLIC_GA_MEASUREMENT_ID?: string;
   readonly PUBLIC_GOOGLE_ADS_ID?: string;

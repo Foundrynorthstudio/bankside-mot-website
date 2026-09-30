@@ -11,7 +11,7 @@ export default defineConfig({
   vite: {
     plugins: [tailwindcss()],
     ssr: {
-      external: ['node:sqlite', 'nodemailer'],
+      external: ['node:sqlite', 'nodemailer', 'postgres'],
     },
   },
 });

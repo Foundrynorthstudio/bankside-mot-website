@@ -7,12 +7,13 @@ import { COMBO_COLLECTION_NOTE, diaryById, formatServicePrice, isMorningDropOffS
 import { addDaysISO, formatBookingSlotLabel, formatDayHeading, formatLongDate, formatSlotRange, mondayOfWeek, timeToMinutes, todayISO, weekdaysFrom } from '../../lib/booking/dates';
 import { createBooking, getBooking, listBookingsBetween, SlotTakenError, updateBookingStatus } from '../../lib/booking/db';
 import { backfillCustomersFromBookings } from '../../lib/booking/customers';
+import { isPostgres } from '../../lib/booking/database';
 import { sendBookingEmails } from '../../lib/booking/email';
 import type { Booking } from '../../lib/booking/types';
 import { validatePublicBooking } from '../../lib/booking/validate';
 
 const url = Astro.url;
-backfillCustomersFromBookings();
+await backfillCustomersFromBookings();
 const today = todayISO();
 const requestedWeek = url.searchParams.get('week') || today;
 const monday = mondayOfWeek(/^\d{4}-\d{2}-\d{2}$/.test(requestedWeek) ? requestedWeek : today);
@@ -21,7 +22,7 @@ const prevWeek = addDaysISO(monday, -7);
 const nextWeek = addDaysISO(monday, 7);
 const selectedId = url.searchParams.get('id');
 const compose = url.searchParams.get('slot');
-const selected = selectedId ? getBooking(selectedId) : null;
+const selected = selectedId ? await getBooking(selectedId) : null;
 const diaryId = 'mot' as const;
 const diary = diaryById(diaryId);
 const diaryServices = servicesForDiary(diaryId);
@@ -78,7 +79,7 @@ if (Astro.request.method === 'POST') {
           slot: `${String(form.get('date'))}_${String(form.get('time'))}_${resource}`,
         });
       }
-      const booking = createBooking({
+      const booking = await createBooking({
         ...value,
         diary: postedDiary,
         resource,
@@ -97,7 +98,7 @@ if (Astro.request.method === 'POST') {
       const date = String(form.get('date') ?? '');
       const time = String(form.get('time') ?? '');
       const resource = String(form.get('resource') ?? diary.resources[0].id);
-      createBooking({
+      await createBooking({
         service: 'Unavailable',
         price: 0,
         date,
@@ -117,7 +118,7 @@ if (Astro.request.method === 'POST') {
 
     if (action === 'cancel' || action === 'complete') {
       const id = String(form.get('id') ?? '');
-      const updated = updateBookingStatus(id, action === 'cancel' ? 'cancelled' : 'completed');
+      const updated = await updateBookingStatus(id, action === 'cancel' ? 'cancelled' : 'completed');
       if (!updated) return returnTo({ error: 'Booking not found.' });
       return returnTo({
         notice: action === 'cancel' ? `${id} cancelled. The slot is free again.` : `${id} marked complete.`,
@@ -130,7 +131,7 @@ if (Astro.request.method === 'POST') {
   }
 }
 
-const bookings = listBookingsBetween(days[0], days[4], diaryId);
+const bookings = await listBookingsBetween(days[0], days[4], diaryId);
 const bySlot = new Map<string, Booking>();
 for (const booking of bookings) {
   bySlot.set(slotKey(booking.date, booking.time, booking.resource), booking);
@@ -146,6 +147,7 @@ const composeTime = composeParts[1] ?? '';
 const composeResource = composeParts[2] || diary.resources[0].id;
 const composeResourceName = resourceLabel(diaryId, composeResource);
 const emailReady = isEmailConfigured();
+const hostedDb = isPostgres();
 const splitCells = diary.resources.length > 1;
 
 function cellClass(booking: Booking | undefined) {
@@ -163,6 +165,11 @@ function weekHref(week: string, extra = '') {
 ---
 
 <AdminLayout title={`${diary.name} diary | Bankside MOT & Repair`} notice={notice} error={error}>
+  {!hostedDb && (
+    <p class="mb-4 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
+      This diary is on the local SQLite file. Add the Supabase <code class="font-mono">DATABASE_URL</code> before taking live MOT bookings.
+    </p>
+  )}
   {!emailReady && (
     <p class="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
       Bookings are saving, but garage emails will not send until SMTP is set in <code class="font-mono">.env</code> (SMTP_HOST, SMTP_USER, SMTP_PASS, GARAGE_EMAIL).

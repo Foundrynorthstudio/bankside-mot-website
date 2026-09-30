@@ -1,4 +1,4 @@
-import { getDb } from './database';
+import { ciLike, sqlAll } from './database';
 
 export type DirectoryMatch = {
   customer_id: string;
@@ -28,52 +28,49 @@ function matchKey(match: DirectoryMatch) {
   return `${match.customer_id}|${match.vehicle_id}|${match.vrm}`;
 }
 
-export function searchBookingDirectory(query: string) {
+export async function searchBookingDirectory(query: string) {
   const trimmed = query.trim();
   if (trimmed.length < 2) return [];
 
   const like = `%${trimmed.replace(/\s+/g, '%')}%`;
   const compact = `%${trimmed.toUpperCase().replace(/[^A-Z0-9+]/g, '')}%`;
   const phoneLike = `%${trimmed.replace(/[\s()-]/g, '')}%`;
-  const database = getDb();
 
-  const fromCustomers = database
-    .prepare(
-      `SELECT c.id AS customer_id, c.name, c.phone, c.email,
-              COALESCE(v.id, '') AS vehicle_id,
-              COALESCE(v.vrm, '') AS vrm,
-              COALESCE(v.make_model, '') AS make_model,
-              COALESCE(v.engine, '') AS engine
-       FROM customers c
-       LEFT JOIN customer_vehicle_links l ON l.customer_id = c.id
-       LEFT JOIN vehicles v ON v.id = l.vehicle_id
-       WHERE c.name LIKE ? COLLATE NOCASE
-          OR c.phone LIKE ?
-          OR c.email LIKE ? COLLATE NOCASE
-       ORDER BY c.name COLLATE NOCASE ASC, v.vrm ASC
-       LIMIT 12`,
-    )
-    .all(like, phoneLike, like) as Record<string, unknown>[];
+  const fromCustomers = await sqlAll(
+    `SELECT c.id AS customer_id, c.name, c.phone, c.email,
+            COALESCE(v.id, '') AS vehicle_id,
+            COALESCE(v.vrm, '') AS vrm,
+            COALESCE(v.make_model, '') AS make_model,
+            COALESCE(v.engine, '') AS engine
+     FROM customers c
+     LEFT JOIN customer_vehicle_links l ON l.customer_id = c.id
+     LEFT JOIN vehicles v ON v.id = l.vehicle_id
+     WHERE ${ciLike('c.name', '$1')}
+        OR c.phone LIKE $2
+        OR ${ciLike('c.email', '$3')}
+     ORDER BY lower(c.name) ASC, v.vrm ASC
+     LIMIT 12`,
+    [like, phoneLike, like],
+  );
 
-  const fromVehicles = database
-    .prepare(
-      `SELECT COALESCE(c.id, '') AS customer_id,
-              COALESCE(c.name, '') AS name,
-              COALESCE(c.phone, '') AS phone,
-              COALESCE(c.email, '') AS email,
-              v.id AS vehicle_id,
-              v.vrm,
-              v.make_model,
-              v.engine
-       FROM vehicles v
-       LEFT JOIN customer_vehicle_links l ON l.vehicle_id = v.id
-       LEFT JOIN customers c ON c.id = l.customer_id
-       WHERE v.vrm LIKE ?
-          OR v.make_model LIKE ? COLLATE NOCASE
-       ORDER BY v.vrm ASC, c.name COLLATE NOCASE ASC
-       LIMIT 12`,
-    )
-    .all(compact, like) as Record<string, unknown>[];
+  const fromVehicles = await sqlAll(
+    `SELECT COALESCE(c.id, '') AS customer_id,
+            COALESCE(c.name, '') AS name,
+            COALESCE(c.phone, '') AS phone,
+            COALESCE(c.email, '') AS email,
+            v.id AS vehicle_id,
+            v.vrm,
+            v.make_model,
+            v.engine
+     FROM vehicles v
+     LEFT JOIN customer_vehicle_links l ON l.vehicle_id = v.id
+     LEFT JOIN customers c ON c.id = l.customer_id
+     WHERE v.vrm LIKE $1
+        OR ${ciLike('v.make_model', '$2')}
+     ORDER BY v.vrm ASC, lower(c.name) ASC
+     LIMIT 12`,
+    [compact, like],
+  );
 
   const seen = new Set<string>();
   const matches: DirectoryMatch[] = [];
