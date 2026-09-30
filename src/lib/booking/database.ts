@@ -268,6 +268,16 @@ function migrateSqlite(database: DatabaseSync) {
     );
     CREATE INDEX IF NOT EXISTS idx_jobs_customer ON jobs(customer_id, job_date);
     CREATE INDEX IF NOT EXISTS idx_jobs_vehicle ON jobs(vehicle_id);
+
+    CREATE TABLE IF NOT EXISTS staff (
+      id TEXT PRIMARY KEY,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      name TEXT NOT NULL,
+      username TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      active INTEGER NOT NULL DEFAULT 1
+    );
   `);
 
   if (!columnNames(database, 'bookings').includes('customer_id')) {

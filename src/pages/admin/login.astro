@@ -3,7 +3,7 @@ export const prerender = false;
 
 import '../../styles/global.css';
 import Logo from '../../components/Logo.astro';
-import { createAdminSession, readAdminSession, verifyAdminCredentials } from '../../lib/booking/auth';
+import { createAdminSession, readAdminSession, verifyAdminLogin } from '../../lib/booking/auth';
 
 if (readAdminSession(Astro.cookies)) {
   return Astro.redirect('/admin');
@@ -14,8 +14,9 @@ if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
   const username = String(form.get('username') ?? '');
   const password = String(form.get('password') ?? '');
-  if (verifyAdminCredentials(username, password)) {
-    createAdminSession(Astro.cookies);
+  const user = await verifyAdminLogin(username, password);
+  if (user) {
+    createAdminSession(Astro.cookies, user.username);
     const next = Astro.url.searchParams.get('next') || '/admin';
     return Astro.redirect(next.startsWith('/admin') ? next : '/admin');
   }

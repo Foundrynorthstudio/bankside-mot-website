@@ -1,0 +1,124 @@
+---
+export const prerender = false;
+
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { createStaff, listStaff, resetStaffPassword, setStaffActive } from '../../lib/booking/staff';
+
+const url = Astro.url;
+let notice = url.searchParams.get('notice') || '';
+let error = url.searchParams.get('error') || '';
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const action = String(form.get('action') ?? '');
+  const returnTo = (extra: Record<string, string>) => {
+    const next = new URL('/admin/staff', url.origin);
+    for (const [key, value] of Object.entries(extra)) {
+      if (value) next.searchParams.set(key, value);
+    }
+    return Astro.redirect(`${next.pathname}${next.search}`);
+  };
+
+  if (action === 'create') {
+    const created = await createStaff({
+      name: String(form.get('name') ?? ''),
+      username: String(form.get('username') ?? ''),
+      password: String(form.get('password') ?? ''),
+    });
+    if (created.error || !created.staff) return returnTo({ error: created.error || 'Could not create that account.' });
+    return returnTo({ notice: `${created.staff.name} can now log in as ${created.staff.username}.` });
+  }
+
+  if (action === 'toggle') {
+    const id = String(form.get('id') ?? '');
+    const active = String(form.get('active') ?? '') === '1';
+    const staff = await setStaffActive(id, active);
+    if (!staff) return returnTo({ error: 'Staff account not found.' });
+    return returnTo({ notice: active ? `${staff.name} can log in again.` : `${staff.name} can no longer log in.` });
+  }
+
+  if (action === 'password') {
+    const reset = await resetStaffPassword(String(form.get('id') ?? ''), String(form.get('password') ?? ''));
+    if (reset.error || !reset.staff) return returnTo({ error: reset.error || 'Could not update that password.' });
+    return returnTo({ notice: `Password updated for ${reset.staff.name}.` });
+  }
+}
+
+const staff = await listStaff();
+---
+
+<AdminLayout title="Staff | Bankside MOT & Repair" notice={notice} error={error}>
+  <div class="mb-5">
+    <h1 class="text-2xl font-extrabold text-slate-900">Workshop logins</h1>
+    <p class="text-sm text-slate-500">Everyone here can use the diary, customers and vehicles. Disable an account instead of deleting it.</p>
+  </div>
+
+  <div class="grid gap-6 lg:grid-cols-12">
+    <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white lg:col-span-8">
+      {staff.length === 0 ? (
+        <p class="p-6 text-sm text-slate-500">No staff accounts yet. Add people on the right. The Netlify manager login still works as a backup.</p>
+      ) : (
+        <table class="w-full text-left text-sm">
+          <thead class="border-b border-slate-100 bg-slate-50 text-xs font-semibold tracking-wide text-slate-500 uppercase">
+            <tr>
+              <th class="px-4 py-3">Name</th>
+              <th class="px-4 py-3">Username</th>
+              <th class="px-4 py-3">Status</th>
+              <th class="px-4 py-3">Password</th>
+              <th class="px-4 py-3"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {staff.map((person) => (
+              <tr class="border-b border-slate-100 last:border-0">
+                <td class="px-4 py-3 font-semibold text-slate-900">{person.name}</td>
+                <td class="px-4 py-3 font-mono text-xs text-slate-600">{person.username}</td>
+                <td class="px-4 py-3">
+                  <span class:list={['rounded-full px-2 py-1 text-[11px] font-semibold', person.active ? 'bg-emerald-50 text-emerald-800' : 'bg-slate-100 text-slate-500']}>
+                    {person.active ? 'Active' : 'Disabled'}
+                  </span>
+                </td>
+                <td class="px-4 py-3">
+                  <form method="post" class="flex max-w-xs gap-2">
+                    <input type="hidden" name="action" value="password" />
+                    <input type="hidden" name="id" value={person.id} />
+                    <input type="password" name="password" placeholder="New password" minlength="8" required class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs outline-none focus:border-brand-500" />
+                    <button class="rounded-lg border border-slate-200 px-2 py-1.5 text-[11px] font-semibold text-slate-700">Set</button>
+                  </form>
+                </td>
+                <td class="px-4 py-3 text-right">
+                  <form method="post">
+                    <input type="hidden" name="action" value="toggle" />
+                    <input type="hidden" name="id" value={person.id} />
+                    <input type="hidden" name="active" value={person.active ? '0' : '1'} />
+                    <button class="text-xs font-semibold text-brand-700 hover:text-brand-800">{person.active ? 'Disable' : 'Enable'}</button>
+                  </form>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+
+    <section class="rounded-2xl border border-slate-200 bg-white p-5 lg:col-span-4">
+      <h2 class="text-sm font-extrabold text-slate-900">Add a login</h2>
+      <form method="post" class="mt-4 space-y-3">
+        <input type="hidden" name="action" value="create" />
+        <label class="block text-xs font-bold tracking-wide text-slate-600 uppercase">
+          Name
+          <input type="text" name="name" required class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500" />
+        </label>
+        <label class="block text-xs font-bold tracking-wide text-slate-600 uppercase">
+          Username
+          <input type="text" name="username" autocomplete="off" required class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500" />
+        </label>
+        <label class="block text-xs font-bold tracking-wide text-slate-600 uppercase">
+          Password
+          <input type="password" name="password" minlength="8" required class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500" />
+        </label>
+        <button class="w-full rounded-xl bg-slate-900 py-2.5 text-xs font-semibold text-white">Create login</button>
+      </form>
+    </section>
+  </div>
+</AdminLayout>
