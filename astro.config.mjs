@@ -5,7 +5,7 @@ import tailwindcss from '@tailwindcss/vite';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://banksidemot.co.uk',
+  site: 'https://banksidemot.com',
   trailingSlash: 'never',
   adapter: netlify(),
   vite: {

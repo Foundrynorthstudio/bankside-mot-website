@@ -22,6 +22,7 @@ pnpm-debug.log*
 # booking database
 data/*.db
 data/*.db-*
+data/staff-passwords.txt
 
 # macOS-specific files
 .DS_Store

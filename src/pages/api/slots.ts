@@ -18,5 +18,13 @@ export const GET: APIRoute = async ({ url }) => {
   if (!service) {
     return Response.json({ error: 'Choose a service.' }, { status: 400 });
   }
-  return Response.json({ date, diary: diaryForService(service), slots: await slotsForService(date, service) });
+  try {
+    return Response.json({ date, diary: diaryForService(service), slots: await slotsForService(date, service) });
+  } catch (error) {
+    console.error(error);
+    return Response.json(
+      { error: 'Could not load times. Please call 01324 613007.' },
+      { status: 503 },
+    );
+  }
 };

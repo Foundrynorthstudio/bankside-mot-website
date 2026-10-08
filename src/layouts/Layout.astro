@@ -6,6 +6,7 @@ import BookingModal from '../components/BookingModal.astro';
 import MobileActionBar from '../components/MobileActionBar.astro';
 import Breadcrumbs from '../components/Breadcrumbs.astro';
 import Analytics from '../components/Analytics.astro';
+import CookieBanner from '../components/CookieBanner.astro';
 import { business, canonicalPath, defaultDescription, defaultTitle } from '../data/site';
 import { pageJsonLd } from '../lib/seo';
 
@@ -104,6 +105,7 @@ const crumbItems = breadcrumbs.map((crumb, index) => ({
     </main>
 
     <Footer />
+    <CookieBanner />
     <BookingModal />
     <MobileActionBar />
 

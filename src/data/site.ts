@@ -1,4 +1,4 @@
-export const SITE_URL = 'https://banksidemot.co.uk';
+export const SITE_URL = 'https://banksidemot.com';
 
 export const motRetestGuidanceUrl = 'https://www.gov.uk/getting-an-mot/retests';
 

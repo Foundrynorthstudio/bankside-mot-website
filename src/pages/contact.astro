@@ -77,13 +77,13 @@ import { business } from '../data/site';
               <input type="text" x-model="contactForm.name" placeholder="Your Name" required class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-brand-500" />
               <input type="tel" x-model="contactForm.phone" placeholder="Phone Number" required class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-brand-500" />
               <textarea x-model="contactForm.message" placeholder="Vehicle reg & required repair" rows="2" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-brand-500"></textarea>
-              <button type="submit" class="w-full rounded-lg bg-slate-900 py-2.5 text-xs font-semibold tracking-wide text-white transition hover:bg-slate-800">
-                Send Callback Request
+              <button type="submit" :disabled="isSubmittingContact" class="w-full rounded-lg bg-slate-900 py-2.5 text-xs font-semibold tracking-wide text-white transition hover:bg-slate-800 disabled:opacity-60">
+                <span x-show="!isSubmittingContact">Send Callback Request</span>
+                <span x-show="isSubmittingContact" x-cloak>Sending…</span>
               </button>
             </form>
-            <div x-show="contactSent" x-cloak class="mt-2 text-center text-xs font-semibold text-emerald-700" x-transition>
-              Callback requested! Reception will call you shortly.
-            </div>
+            <div x-show="contactError" x-cloak class="mt-2 text-center text-xs font-semibold text-rose-700" x-text="contactError"></div>
+            <div x-show="contactSent" x-cloak class="mt-2 text-center text-xs font-semibold text-emerald-700" x-text="contactMessage"></div>
           </div>
         </div>
 

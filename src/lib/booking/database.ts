@@ -1,17 +1,26 @@
+import { randomBytes, scryptSync } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
 import postgres from 'postgres';
 import { env } from './config';
 import { nextId } from './ids';
 import schemaSql from './schema.sql?raw';
 
 type Row = Record<string, unknown>;
+type SqliteDatabase = {
+  exec(sql: string): void;
+  prepare(sql: string): {
+    all: (...params: unknown[]) => Row[];
+    get: (...params: unknown[]) => Row | undefined;
+    run: (...params: unknown[]) => { changes: number };
+  };
+};
 
 const onNetlify = Boolean(process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME);
-const sqlitePath = onNetlify ? '/tmp/bankside-bookings.db' : resolve(process.cwd(), 'data/bookings.db');
+const sqlitePath = resolve(process.cwd(), 'data/bookings.db');
 
-let sqlite: DatabaseSync | undefined;
+let sqlite: SqliteDatabase | undefined;
 let pg: postgres.Sql | undefined;
 let migrated = false;
 
@@ -80,9 +89,19 @@ function toUniqueError(error: unknown) {
   return error instanceof Error ? error : new Error(String(error));
 }
 
+function requireDatabaseUrl() {
+  if (onNetlify && !isPostgres()) {
+    throw new Error('DATABASE_URL is not set. Live bookings need the Supabase connection string.');
+  }
+}
+
 function getSqlite() {
+  requireDatabaseUrl();
   if (!sqlite) {
     mkdirSync(dirname(sqlitePath), { recursive: true });
+    const { DatabaseSync } = createRequire(import.meta.url)('node:sqlite') as {
+      DatabaseSync: new (path: string) => SqliteDatabase;
+    };
     sqlite = new DatabaseSync(sqlitePath);
     migrateSqlite(sqlite);
   }
@@ -128,20 +147,47 @@ async function migratePostgres() {
   )) as { tablename: string }[];
   const tables = new Set(existing.map((row) => row.tablename));
   const ready = ['bookings', 'customers', 'vehicles', 'jobs', 'staff'].every((name) => tables.has(name));
-  if (ready) {
-    migrated = true;
-    return;
+  if (!ready) {
+    const skipRls = tables.has('bookings');
+    for (const statement of schemaStatements(schemaSql)) {
+      if (skipRls && /ENABLE ROW LEVEL SECURITY/i.test(statement)) continue;
+      await client.unsafe(statement);
+    }
   }
-
-  const skipRls = tables.has('bookings');
-  for (const statement of schemaStatements(schemaSql)) {
-    if (skipRls && /ENABLE ROW LEVEL SECURITY/i.test(statement)) continue;
-    await client.unsafe(statement);
-  }
+  await seedStaffIfEmpty();
   migrated = true;
 }
 
+function hashStaffPassword(password: string) {
+  const salt = randomBytes(16).toString('hex');
+  return `${salt}:${scryptSync(password, salt, 64).toString('hex')}`;
+}
+
+async function seedStaffIfEmpty() {
+  const existing = await getPg().unsafe(`SELECT count(*)::int AS n FROM staff`);
+  if (Number((existing[0] as { n: number }).n) > 0) return;
+
+  const people = [
+    { name: 'Stephen', username: 'stephen', key: 'STAFF_STEPHEN_PASSWORD' },
+    { name: 'Alison', username: 'alison', key: 'STAFF_ALISON_PASSWORD' },
+    { name: 'Colin', username: 'colin', key: 'STAFF_COLIN_PASSWORD' },
+    { name: 'Mack', username: 'mack', key: 'STAFF_MACK_PASSWORD' },
+  ];
+  const now = new Date().toISOString();
+  for (const person of people) {
+    const password = env(person.key);
+    if (password.length < 8) continue;
+    await getPg().unsafe(
+      `INSERT INTO staff (id, created_at, updated_at, name, username, password_hash, active)
+       VALUES ($1, $2, $3, $4, $5, $6, 1)
+       ON CONFLICT (username) DO NOTHING`,
+      [nextId('STF'), now, now, person.name, person.username, hashStaffPassword(password)],
+    );
+  }
+}
+
 export async function sqlAll<T = Row>(text: string, params: unknown[] = []): Promise<T[]> {
+  requireDatabaseUrl();
   if (isPostgres()) {
     await migratePostgres();
     try {
@@ -165,9 +211,7 @@ export async function sqlGet<T = Row>(text: string, params: unknown[] = []): Pro
 }
 
 export async function sqlRun(text: string, params: unknown[] = []): Promise<{ changes: number }> {
-  if (process.env.AWS_LAMBDA_FUNCTION_NAME && !isPostgres()) {
-    throw new Error('DATABASE_URL is not set. Live bookings need the Supabase connection string.');
-  }
+  requireDatabaseUrl();
   if (isPostgres()) {
     await migratePostgres();
     try {
@@ -186,12 +230,12 @@ export async function sqlRun(text: string, params: unknown[] = []): Promise<{ ch
   }
 }
 
-function columnNames(database: DatabaseSync, table: string) {
+function columnNames(database: SqliteDatabase, table: string) {
   const rows = database.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
   return rows.map((row) => row.name);
 }
 
-function migrateSqlite(database: DatabaseSync) {
+function migrateSqlite(database: SqliteDatabase) {
   database.exec(`
     CREATE TABLE IF NOT EXISTS bookings (
       id TEXT PRIMARY KEY,
@@ -334,7 +378,7 @@ function migrateSqlite(database: DatabaseSync) {
   `);
 }
 
-function migrateLegacyVehicles(database: DatabaseSync) {
+function migrateLegacyVehicles(database: SqliteDatabase) {
   const legacy = database.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'customer_vehicles'`).get() as
     | { name: string }
     | undefined;

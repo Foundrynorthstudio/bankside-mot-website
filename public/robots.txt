@@ -9,4 +9,4 @@ Allow: /
 Disallow: /admin
 Disallow: /api/
 
-Sitemap: https://banksidemot.co.uk/sitemap.xml
+Sitemap: https://banksidemot.com/sitemap.xml

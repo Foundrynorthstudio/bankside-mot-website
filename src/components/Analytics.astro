@@ -1,8 +1,7 @@
 ---
-import { analyticsConfig, analyticsEnabled } from '../lib/analytics';
+import { analyticsConfig } from '../lib/analytics';
 
 const config = analyticsConfig();
-const enabled = analyticsEnabled(config);
 ---
 
 <script is:inline define:vars={{ config }}>
@@ -12,14 +11,3 @@ const enabled = analyticsEnabled(config);
   };
   window.__BANKSIDE_ANALYTICS = config;
 </script>
-
-{enabled && (
-  <>
-    <script is:inline src={`https://www.googletagmanager.com/gtag/js?id=${config.gaId || config.adsId}`} async></script>
-    <script is:inline define:vars={{ config }}>
-      window.gtag('js', new Date());
-      if (config.gaId) window.gtag('config', config.gaId);
-      if (config.adsId) window.gtag('config', config.adsId);
-    </script>
-  </>
-)}

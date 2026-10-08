@@ -59,6 +59,7 @@ import Logo from './Logo.astro';
       <div>© {new Date().getFullYear()} {business.legalName}. All Rights Reserved.</div>
       <div class="flex space-x-4">
         <a href="/privacy" class="hover:text-slate-300">Privacy Policy</a>
+        <button type="button" @click="openCookieSettings()" class="hover:text-slate-300">Cookie settings</button>
         <a href="/terms" class="hover:text-slate-300">Terms & Conditions</a>
         <a href="https://www.gov.uk/getting-an-mot" rel="noopener noreferrer" target="_blank" class="hover:text-slate-300">DVSA MOT guidance</a>
       </div>

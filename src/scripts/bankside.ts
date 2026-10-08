@@ -1,7 +1,34 @@
 import Alpine from 'alpinejs';
 import { serviceByName } from '../lib/booking/config';
 
+const CONSENT_COOKIE = 'bankside_cookie_consent';
+
+function readCookieConsent(): '' | 'accepted' | 'rejected' {
+  const match = document.cookie.match(new RegExp(`(?:^|; )${CONSENT_COOKIE}=([^;]+)`));
+  return match?.[1] === 'accepted' || match?.[1] === 'rejected' ? match[1] : '';
+}
+
+function writeCookieConsent(value: 'accepted' | 'rejected') {
+  document.cookie = `${CONSENT_COOKIE}=${value}; Path=/; Max-Age=${60 * 60 * 24 * 180}; SameSite=Lax`;
+}
+
+function loadAnalytics() {
+  const config = window.__BANKSIDE_ANALYTICS;
+  if (!config || !(config.gaId || config.adsId)) return;
+  if (document.querySelector('script[data-bankside-analytics]')) return;
+
+  const script = document.createElement('script');
+  script.src = `https://www.googletagmanager.com/gtag/js?id=${config.gaId || config.adsId}`;
+  script.async = true;
+  script.dataset.banksideAnalytics = '1';
+  document.head.append(script);
+  window.gtag('js', new Date());
+  if (config.gaId) window.gtag('config', config.gaId);
+  if (config.adsId) window.gtag('config', config.adsId);
+}
+
 function trackConversion(event: 'phone' | 'booking' | 'lead', value?: number) {
+  if (readCookieConsent() !== 'accepted') return;
   const config = window.__BANKSIDE_ANALYTICS;
   window.dataLayer = window.dataLayer || [];
   window.dataLayer.push({ event: `bankside_${event}`, value });
@@ -58,6 +85,8 @@ function nextWeekdayISO() {
 
 Alpine.data('banksideApp', () => ({
   mobileMenuOpen: false,
+  cookieConsent: '' as '' | 'accepted' | 'rejected',
+  cookieBannerOpen: false,
 
   vrmInput: '',
   isSearchingVehicle: false,
@@ -75,6 +104,9 @@ Alpine.data('banksideApp', () => ({
 
   contactForm: { name: '', phone: '', message: '' },
   contactSent: false,
+  contactError: '',
+  contactMessage: '',
+  isSubmittingContact: false,
 
   bookingModalOpen: false,
   bookingStep: 1,
@@ -96,6 +128,23 @@ Alpine.data('banksideApp', () => ({
   bookingError: '',
   isSubmittingBooking: false,
   emailSent: false,
+
+  init() {
+    this.cookieConsent = readCookieConsent();
+    this.cookieBannerOpen = !this.cookieConsent;
+    if (this.cookieConsent === 'accepted') loadAnalytics();
+  },
+
+  setCookieConsent(value: 'accepted' | 'rejected') {
+    writeCookieConsent(value);
+    this.cookieConsent = value;
+    this.cookieBannerOpen = false;
+    if (value === 'accepted') loadAnalytics();
+  },
+
+  openCookieSettings() {
+    this.cookieBannerOpen = true;
+  },
 
   compactVrm() {
     return this.vrmInput.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -152,14 +201,31 @@ Alpine.data('banksideApp', () => ({
     this.bookingModalOpen = true;
   },
 
-  submitContactForm() {
-    if (this.contactForm.name && this.contactForm.phone) {
+  async submitContactForm() {
+    if (!this.contactForm.name.trim() || !this.contactForm.phone.trim()) {
+      this.contactError = 'Enter your name and phone number.';
+      return;
+    }
+    this.isSubmittingContact = true;
+    this.contactError = '';
+    this.contactSent = false;
+    this.contactMessage = '';
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(this.contactForm),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Could not send that request.');
       this.contactSent = true;
-      trackConversion('lead');
-      setTimeout(() => {
-        this.contactForm = { name: '', phone: '', message: '' };
-        this.contactSent = false;
-      }, 4000);
+      this.contactMessage = data.message || 'Callback requested. Reception will call you shortly.';
+      if (data.sent) trackConversion('lead');
+      this.contactForm = { name: '', phone: '', message: '' };
+    } catch (error) {
+      this.contactError = error instanceof Error ? error.message : 'Could not send that request. Please call 01324 613007.';
+    } finally {
+      this.isSubmittingContact = false;
     }
   },
 
@@ -220,14 +286,14 @@ Alpine.data('banksideApp', () => ({
     try {
       const response = await fetch(`/api/slots?date=${this.bookingDate}&service=${encodeURIComponent(this.selectedService)}`);
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Could not load times.');
+      if (!response.ok) throw new Error(data.error || 'Could not load times. Please call 01324 613007.');
       this.availableSlots = data.slots ?? [];
       const stillOpen = this.availableSlots.find((slot) => slot.time === this.selectedTime && slot.available);
       if (!stillOpen) {
         this.selectedTime = this.availableSlots.find((slot) => slot.available)?.time ?? '';
       }
     } catch (error) {
-      this.bookingError = error instanceof Error ? error.message : 'Could not load times.';
+      this.bookingError = error instanceof Error ? error.message : 'Could not load times. Please call 01324 613007.';
       this.availableSlots = [];
     } finally {
       this.slotsLoading = false;

@@ -1,0 +1,21 @@
+<div
+  x-show="cookieBannerOpen"
+  x-cloak
+  class="fixed inset-x-0 bottom-0 z-[60] border-t border-slate-200 bg-white/95 p-4 shadow-[0_-8px_30px_rgba(15,23,42,0.12)] backdrop-blur"
+>
+  <div class="mx-auto flex max-w-5xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <p class="text-xs leading-relaxed text-slate-600">
+      We use necessary cookies to take bookings and keep you signed in to the workshop diary.
+      Optional analytics cookies help us understand the website. See the
+      <a href="/privacy" class="font-semibold text-brand-700 underline">privacy policy</a>.
+    </p>
+    <div class="flex shrink-0 flex-wrap gap-2">
+      <button type="button" @click="setCookieConsent('rejected')" class="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-800 transition hover:bg-slate-50">
+        Reject optional cookies
+      </button>
+      <button type="button" @click="setCookieConsent('accepted')" class="rounded-xl bg-brand-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-brand-700">
+        Accept analytics
+      </button>
+    </div>
+  </div>
+</div>

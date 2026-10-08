@@ -78,3 +78,27 @@ export async function sendBookingEmails(booking: Booking) {
 
   return { sent: true };
 }
+
+export async function sendCallbackEmail(input: { name: string; phone: string; message: string }) {
+  const mailer = transporter();
+  const text = [
+    `Name: ${input.name}`,
+    `Phone: ${input.phone}`,
+    input.message ? `Message: ${input.message}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  if (!mailer) {
+    console.info(`[callback email skipped — set SMTP_HOST to send]\nTo: ${garageEmail()}\n\n${text}`);
+    return { sent: false, reason: 'The workshop has your number. Email sending is not configured yet, so please also call 01324 613007 if it is urgent.' };
+  }
+
+  await mailer.sendMail({
+    from: fromAddress(),
+    to: garageEmail(),
+    subject: `Callback request — ${input.name} — ${input.phone}`,
+    text: `A customer asked for a callback from the website.\n\n${text}`,
+  });
+  return { sent: true };
+}
