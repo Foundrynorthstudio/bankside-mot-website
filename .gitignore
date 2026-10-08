@@ -23,6 +23,7 @@ pnpm-debug.log*
 data/*.db
 data/*.db-*
 data/staff-passwords.txt
+data/workspace-hello.txt
 
 # macOS-specific files
 .DS_Store

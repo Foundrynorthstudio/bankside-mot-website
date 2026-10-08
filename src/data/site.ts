@@ -11,7 +11,7 @@ export const business = {
   telephoneDisplay: '01324 613007',
   telephone: '+441324613007',
   url: SITE_URL,
-  email: 'bookings@banksidemot.co.uk',
+  email: 'hello@banksidemot.com',
   priceRange: '£',
   streetAddress: 'Unit 1b, Castlelaurie Industrial Estate',
   addressLocality: 'Falkirk',

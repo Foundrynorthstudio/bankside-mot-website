@@ -100,5 +100,5 @@ export function env(name: string, fallback = '') {
 }
 
 export function garageEmail() {
-  return env('GARAGE_EMAIL', 'bookings@banksidemot.co.uk');
+  return env('GARAGE_EMAIL', 'hello@banksidemot.com');
 }
