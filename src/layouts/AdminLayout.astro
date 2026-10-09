@@ -17,6 +17,7 @@ const onDiary = path === '/admin';
 const onCustomers = path.startsWith('/admin/customers') || path.startsWith('/admin/jobs');
 const onVehicles = path.startsWith('/admin/vehicles');
 const onStaff = path.startsWith('/admin/staff');
+const onEmails = path.startsWith('/admin/emails');
 const sessionUser = readAdminSession(Astro.cookies);
 const staff = sessionUser ? await getStaffByUsername(sessionUser) : null;
 const signedInAs = staff?.name || sessionUser;
@@ -69,6 +70,12 @@ const signedInAs = staff?.name || sessionUser;
             class:list={['rounded-lg px-3 py-2', onStaff ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50']}
           >
             Staff
+          </a>
+          <a
+            href="/admin/emails"
+            class:list={['rounded-lg px-3 py-2', onEmails ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50']}
+          >
+            Emails
           </a>
         </nav>
         <div class="flex items-center gap-2">

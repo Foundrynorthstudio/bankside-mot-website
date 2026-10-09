@@ -155,7 +155,20 @@ async function migratePostgres() {
     }
   }
   await seedStaffIfEmpty();
+  await ensureEmailTemplatesTable();
   migrated = true;
+}
+
+async function ensureEmailTemplatesTable() {
+  await getPg().unsafe(`
+    CREATE TABLE IF NOT EXISTS email_templates (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      body TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `);
 }
 
 function hashStaffPassword(password: string) {
@@ -336,6 +349,14 @@ function migrateSqlite(database: SqliteDatabase) {
       username TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
       active INTEGER NOT NULL DEFAULT 1
+    );
+
+    CREATE TABLE IF NOT EXISTS email_templates (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      body TEXT NOT NULL,
+      updated_at TEXT NOT NULL
     );
   `);
 
