@@ -89,16 +89,7 @@ Alpine.data('banksideApp', () => ({
   cookieBannerOpen: false,
 
   vrmInput: '',
-  isSearchingVehicle: false,
-  vrmFound: false,
   vrmLookupError: '',
-  vehicleData: {
-    makeModel: '',
-    engineFuel: '',
-    motDue: '',
-    motTone: 'unknown' as 'ok' | 'due' | 'expired' | 'unknown',
-    colour: '',
-  },
 
   financeAmount: 300,
 
@@ -150,40 +141,13 @@ Alpine.data('banksideApp', () => ({
     return this.vrmInput.toUpperCase().replace(/[^A-Z0-9]/g, '');
   },
 
-  async lookupVehicle() {
-    const vrm = this.compactVrm();
-    if (vrm.length < 2) {
-      this.vrmFound = false;
+  startBookingFromPlate() {
+    if (this.compactVrm().length < 2) {
       this.vrmLookupError = 'Enter a valid UK registration.';
-      return false;
+      return;
     }
-
-    this.isSearchingVehicle = true;
-    this.vrmFound = false;
     this.vrmLookupError = '';
-
-    try {
-      const response = await fetch(`/api/lookup-vrm?vrm=${encodeURIComponent(vrm)}`);
-      const data = await response.json();
-      if (!response.ok) {
-        this.vrmLookupError = data.error || 'Could not look up that registration. You can still book.';
-        return false;
-      }
-      this.vehicleData = {
-        makeModel: data.makeModel ?? '',
-        engineFuel: data.engineFuel ?? '',
-        motDue: data.motStatus ?? '',
-        motTone: data.motTone ?? 'unknown',
-        colour: data.colour ?? '',
-      };
-      this.vrmFound = true;
-      return true;
-    } catch {
-      this.vrmLookupError = 'Could not look up that registration. You can still book.';
-      return false;
-    } finally {
-      this.isSearchingVehicle = false;
-    }
+    this.openBookingModal();
   },
 
   quickBook(serviceName: string, price: number) {
@@ -250,8 +214,8 @@ Alpine.data('banksideApp', () => ({
         date: this.bookingDate,
         time: this.selectedTime,
         vrm: this.vrmInput,
-        vehicle_make_model: this.vrmFound ? this.vehicleData.makeModel : '',
-        vehicle_engine: this.vrmFound ? this.vehicleData.engineFuel : '',
+        vehicle_make_model: '',
+        vehicle_engine: '',
         customer_name: this.customerName,
         customer_phone: this.customerPhone,
         customer_email: this.customerEmail,
@@ -306,9 +270,6 @@ Alpine.data('banksideApp', () => ({
       return;
     }
     this.bookingError = '';
-    if (!this.vrmFound && !this.isSearchingVehicle) {
-      await this.lookupVehicle();
-    }
     this.bookingStep = 2;
     await this.loadSlots();
   },
