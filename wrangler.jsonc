@@ -16,6 +16,8 @@
 			"id": "f1a7d6b7646e476c97d64d607ac1e09c"
 		},
 	],
+	"workers_dev": true,
+	"preview_urls": true,
 	"observability": {
 		"enabled": true,
 	},
