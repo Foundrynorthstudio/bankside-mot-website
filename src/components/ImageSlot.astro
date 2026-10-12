@@ -1,6 +1,5 @@
 ---
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { photoExists } from '../data/photos';
 
 interface Props {
   src: string;
@@ -24,9 +23,9 @@ const {
   height = 768,
 } = Astro.props;
 const filename = src.split('/').pop() ?? src;
-const hasImage = existsSync(resolve(process.cwd(), `public${src}`));
+const hasImage = photoExists(src);
 const webpSrc = src.replace(/\.jpe?g$/i, '.webp');
-const hasWebp = hasImage && webpSrc !== src && existsSync(resolve(process.cwd(), `public${webpSrc}`));
+const hasWebp = hasImage && webpSrc !== src && photoExists(webpSrc);
 ---
 
 <div class:list={['image-slot relative isolate overflow-hidden bg-slate-900', className]}>

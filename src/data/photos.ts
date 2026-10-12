@@ -1,8 +1,10 @@
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
+const bundledPhotoFiles = new Set(
+  Object.keys(import.meta.glob('../../public/images/*.{jpg,jpeg,png,webp}')).map((path) => path.split('/').pop() ?? ''),
+);
 
 export function photoExists(src: string) {
-  return existsSync(resolve(process.cwd(), `public${src}`));
+  const filename = src.split('/').pop() ?? '';
+  return bundledPhotoFiles.has(filename);
 }
 
 export const photos = {
