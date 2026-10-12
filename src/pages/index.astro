@@ -70,8 +70,8 @@ const hasTeamBandPhoto = photoExists(photos.teamBand.src);
           <div class="relative rounded-2xl border border-slate-200 bg-white p-6 shadow-xl soft-shadow">
             <div class="mb-6 text-center">
               <span class="rounded-full border border-brand-100 bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-600">Live Garage Availability</span>
-              <h2 class="mt-2 text-xl font-bold text-slate-900">Book Your MOT Online</h2>
-              <p class="mt-1 text-sm text-slate-500">Enter the registration and choose a live MOT slot</p>
+              <h2 class="mt-2 text-xl font-bold text-slate-900">Check Your Vehicle & Book Online</h2>
+              <p class="mt-1 text-sm text-slate-500">Instant DVLA MOT status lookup & booking calendar</p>
             </div>
 
             <div class="space-y-4">
@@ -84,28 +84,67 @@ const hasTeamBandPhoto = photoExists(photos.teamBand.src);
                   <input
                     type="text"
                     x-model="vrmInput"
-                    @input="vrmLookupError = ''"
-                    @keyup.enter="startBookingFromPlate()"
+                    @input="vrmFound = false; vrmLookupError = ''"
+                    @keyup.enter="lookupVehicle()"
                     placeholder="FK68 MOT"
                     class="uk-plate w-full px-4 py-3 text-center text-2xl font-bold tracking-widest uppercase outline-none placeholder-slate-700/40 sm:text-3xl"
                   />
                 </div>
               </div>
 
-              <p class="text-xs text-slate-500">UK registration only. The plate is saved with the booking so the workshop has it on the diary.</p>
+              <p class="text-xs text-slate-500">UK registration only. We’ll look up make, model and MOT status, then show live MOT slots.</p>
 
               <button
                 type="button"
-                @click="startBookingFromPlate()"
+                @click="lookupVehicle()"
+                :disabled="isSearchingVehicle"
                 class="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-6 py-3.5 text-sm font-semibold tracking-wide text-white shadow-md transition hover:bg-brand-700"
               >
-                <span class="flex items-center gap-2">
-                  <i class="fa-solid fa-calendar-check"></i> View Available Slots
+                <span x-show="!isSearchingVehicle" class="flex items-center gap-2">
+                  <i class="fa-solid fa-magnifying-glass"></i> Check Vehicle & View Available Slots
+                </span>
+                <span x-show="isSearchingVehicle" x-cloak class="flex items-center gap-2">
+                  <i class="fa-solid fa-circle-notch animate-spin"></i> Fetching Vehicle Details...
                 </span>
               </button>
             </div>
 
             <div x-show="vrmLookupError" x-cloak class="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900" x-text="vrmLookupError"></div>
+
+            <div x-show="vrmFound || vrmLookupError" x-cloak x-transition class="mt-5 border-t border-slate-100 pt-4">
+              <div x-show="vrmFound" class="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
+                <div class="flex items-center justify-between gap-3">
+                  <span class="font-medium text-slate-500">Vehicle found:</span>
+                  <span class="text-right text-sm font-bold text-slate-900" x-text="vehicleData.makeModel"></span>
+                </div>
+                <div class="flex items-center justify-between gap-3" x-show="vehicleData.colour">
+                  <span class="font-medium text-slate-500">Colour:</span>
+                  <span class="font-medium text-slate-700" x-text="vehicleData.colour"></span>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                  <span class="font-medium text-slate-500">Engine / Fuel:</span>
+                  <span class="font-medium text-slate-700" x-text="vehicleData.engineFuel"></span>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                  <span class="font-medium text-slate-500">MOT status:</span>
+                  <span
+                    class="rounded-full px-2.5 py-0.5 text-right text-xs font-semibold"
+                    :class="{
+                      'bg-emerald-100 text-emerald-800': vehicleData.motTone === 'ok',
+                      'bg-amber-100 text-amber-800': vehicleData.motTone === 'due',
+                      'bg-rose-100 text-rose-800': vehicleData.motTone === 'expired',
+                      'bg-slate-100 text-slate-700': vehicleData.motTone === 'unknown',
+                    }"
+                    x-text="vehicleData.motDue"
+                  ></span>
+                </div>
+              </div>
+
+              <button type="button" @click="openBookingModal()" class="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-3 text-xs font-semibold tracking-wide text-white transition hover:bg-slate-800">
+                <span>Select Service & Pick Date/Time</span>
+                <i class="fa-solid fa-arrow-right text-brand-500"></i>
+              </button>
+            </div>
           </div>
         </div>
       </div>
