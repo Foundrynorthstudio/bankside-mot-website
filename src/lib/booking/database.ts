@@ -1,3 +1,4 @@
+import { env as workerEnv } from 'cloudflare:workers';
 import { randomBytes, scryptSync } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -6,6 +7,17 @@ import postgres from 'postgres';
 import { env } from './config';
 import { nextId } from './ids';
 import schemaSql from './schema.sql?raw';
+
+type HyperdriveBinding = { connectionString: string };
+
+function hyperdriveConnectionString() {
+  try {
+    const binding = (workerEnv as { HYPERDRIVE?: HyperdriveBinding }).HYPERDRIVE;
+    return binding?.connectionString || '';
+  } catch {
+    return '';
+  }
+}
 
 type Row = Record<string, unknown>;
 type SqliteDatabase = {
@@ -17,7 +29,14 @@ type SqliteDatabase = {
   };
 };
 
-const onNetlify = Boolean(process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME);
+function isHostedRuntime() {
+  return Boolean(
+    process.env.NETLIFY ||
+    process.env.CF_PAGES ||
+    process.env.CLOUDFLARE_ENV ||
+    hyperdriveConnectionString(),
+  );
+}
 const sqlitePath = resolve(process.cwd(), 'data/bookings.db');
 
 let sqlite: SqliteDatabase | undefined;
@@ -35,7 +54,7 @@ export class UniqueViolationError extends Error {
 }
 
 export function databaseUrl() {
-  return env('DATABASE_URL', env('SUPABASE_DB_URL'));
+  return hyperdriveConnectionString() || env('DATABASE_URL', env('SUPABASE_DB_URL'));
 }
 
 export function isPostgres() {
@@ -90,7 +109,7 @@ function toUniqueError(error: unknown) {
 }
 
 function requireDatabaseUrl() {
-  if (onNetlify && !isPostgres()) {
+  if (isHostedRuntime() && !isPostgres()) {
     throw new Error('DATABASE_URL is not set. Live bookings need the Supabase connection string.');
   }
 }
@@ -108,20 +127,31 @@ function getSqlite() {
   return sqlite;
 }
 
+function createPg() {
+  const viaHyperdrive = Boolean(hyperdriveConnectionString());
+  const url = databaseUrl();
+  const local = /localhost|127\.0\.0\.1/i.test(url);
+  return postgres(url, {
+    max: 1,
+    prepare: viaHyperdrive,
+    fetch_types: false,
+    idle_timeout: 20,
+    connect_timeout: 10,
+    ssl: viaHyperdrive || local ? false : 'require',
+    connection: {
+      statement_timeout: 8000,
+    },
+  });
+}
+
 function getPg() {
+  // Hyperdrive sockets are request-scoped on Workers. Reusing a client
+  // across invocations throws "Cannot perform I/O on behalf of a different request."
+  if (hyperdriveConnectionString()) {
+    return createPg();
+  }
   if (!pg) {
-    const url = databaseUrl();
-    const local = /localhost|127\.0\.0\.1/i.test(url);
-    pg = postgres(url, {
-      max: 1,
-      prepare: false,
-      idle_timeout: 20,
-      connect_timeout: 10,
-      ssl: local ? false : 'require',
-      connection: {
-        statement_timeout: 8000,
-      },
-    });
+    pg = createPg();
   }
   return pg;
 }

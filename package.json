@@ -12,17 +12,23 @@
     "astro": "astro"
   },
   "dependencies": {
-    "@astrojs/netlify": "^8.2.5",
+    "@astrojs/cloudflare": "^14.3.4",
     "@fontsource-variable/plus-jakarta-sans": "^5.3.0",
     "@tailwindcss/vite": "^4.3.3",
     "alpinejs": "^3.14.9",
-    "astro": "^7.2.3",
+    "astro": "^7.3.8",
     "nodemailer": "^9.1.1",
     "postgres": "^3.4.9",
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
     "@types/alpinejs": "^3.13.11",
-    "@types/nodemailer": "^8.0.1"
+    "@types/nodemailer": "^8.0.1",
+    "wrangler": "^4.149.0"
+  },
+  "allowScripts": {
+    "workerd@1.20261006.1": true,
+    "esbuild@0.28.2": true,
+    "fsevents@2.3.3": true
   }
 }

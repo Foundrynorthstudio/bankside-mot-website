@@ -30,3 +30,7 @@ data/workspace-hello.txt
 
 # jetbrains setting folder
 .idea/
+
+# wrangler / Cloudflare
+.wrangler/
+.dev.vars

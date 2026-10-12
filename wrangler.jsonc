@@ -1,0 +1,28 @@
+{
+	"name": "banksidemot",
+	"main": "@astrojs/cloudflare/entrypoints/server",
+	"compatibility_date": "2026-10-12",
+	"compatibility_flags": [
+		"nodejs_compat",
+		"global_fetch_strictly_public"
+	],
+	"assets": {
+		"binding": "ASSETS",
+		"directory": "./dist",
+	},
+	"kv_namespaces": [
+		{
+			"binding": "SESSION",
+			"id": "f1a7d6b7646e476c97d64d607ac1e09c"
+		},
+	],
+	"observability": {
+		"enabled": true,
+	},
+	"hyperdrive": [
+		{
+			"binding": "HYPERDRIVE",
+			"id": "88bf378e0d284bdfadba7b5b9ba4a981"
+		}
+	],
+}

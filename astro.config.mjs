@@ -1,17 +1,16 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
-import netlify from '@astrojs/netlify';
+import cloudflare from '@astrojs/cloudflare';
 import tailwindcss from '@tailwindcss/vite';
 
 // https://astro.build/config
 export default defineConfig({
   site: 'https://banksidemot.com',
   trailingSlash: 'never',
-  adapter: netlify(),
+  adapter: cloudflare({
+    imageService: 'passthrough',
+  }),
   vite: {
     plugins: [tailwindcss()],
-    ssr: {
-      external: ['node:sqlite', 'nodemailer', 'postgres'],
-    },
   },
 });
