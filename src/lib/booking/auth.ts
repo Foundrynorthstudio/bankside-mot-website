@@ -1,13 +1,19 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { AstroCookies } from 'astro';
 import { env } from './config';
+import { isHostedRuntime } from './database';
 import { getStaffAuth, verifyPassword } from './staff';
 
 const COOKIE = 'bankside_admin';
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 
 function secret() {
-  return env('SESSION_SECRET', env('ADMIN_PASSWORD', 'dev-session-secret-change-me'));
+  const configured = env('SESSION_SECRET');
+  if (configured) return configured;
+  if (isHostedRuntime()) {
+    throw new Error('SESSION_SECRET is not set. Workshop logins need a dedicated session secret.');
+  }
+  return env('ADMIN_PASSWORD', 'dev-session-secret-change-me');
 }
 
 function sign(value: string) {

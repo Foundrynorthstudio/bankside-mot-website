@@ -14,6 +14,7 @@ const pages = [
   { path: '/areas', priority: '0.8', changefreq: 'monthly' },
   { path: '/finance', priority: '0.7', changefreq: 'monthly' },
   { path: '/privacy', priority: '0.3', changefreq: 'yearly' },
+  { path: '/cookies', priority: '0.3', changefreq: 'yearly' },
   { path: '/terms', priority: '0.3', changefreq: 'yearly' },
 ];
 

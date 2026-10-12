@@ -1,0 +1,76 @@
+---
+export const prerender = true;
+
+import Layout from '../layouts/Layout.astro';
+import { business } from '../data/site';
+
+const lastUpdated = '12 October 2026';
+---
+
+<Layout
+  title="Cookie Policy | Bankside MOT & Repair Falkirk"
+  description="Cookies used on the Bankside MOT & Repair website, including necessary booking cookies and optional Google Analytics."
+  breadcrumbs={[
+    { name: 'Home', path: '/' },
+    { name: 'Cookie Policy', path: '/cookies' },
+  ]}
+>
+  <div class="bg-white py-12">
+    <div class="container mx-auto max-w-3xl px-4 space-y-6 text-sm leading-relaxed text-slate-600">
+      <h1 class="text-3xl font-extrabold text-slate-900">Cookie Policy</h1>
+      <p>
+        {business.legalName} uses cookies on this website. Necessary cookies keep the site working. Optional analytics cookies are used only if you choose Accept analytics.
+        You can change that at any time with Cookie settings in the footer. The
+        <a href="/privacy" class="font-semibold text-brand-700 underline decoration-brand-200 underline-offset-2 hover:text-brand-800">privacy policy</a>
+        explains how we use personal information.
+      </p>
+      <p class="text-xs text-slate-500">Last updated {lastUpdated}.</p>
+
+      <h2 class="text-xl font-bold text-slate-900">Cookies we use</h2>
+      <div class="overflow-x-auto">
+        <table class="min-w-full border-collapse text-left text-xs">
+          <thead>
+            <tr class="border-b border-slate-200 text-slate-900">
+              <th class="py-2 pr-4 font-bold">Cookie</th>
+              <th class="py-2 pr-4 font-bold">Type</th>
+              <th class="py-2 pr-4 font-bold">How long</th>
+              <th class="py-2 font-bold">Purpose</th>
+            </tr>
+          </thead>
+          <tbody class="align-top">
+            <tr class="border-b border-slate-100">
+              <td class="py-3 pr-4 font-mono text-[11px] text-slate-800">bankside_cookie_consent</td>
+              <td class="py-3 pr-4">Necessary</td>
+              <td class="py-3 pr-4">180 days</td>
+              <td class="py-3">Remembers whether you accepted or rejected optional analytics.</td>
+            </tr>
+            <tr class="border-b border-slate-100">
+              <td class="py-3 pr-4 font-mono text-[11px] text-slate-800">bankside_admin</td>
+              <td class="py-3 pr-4">Necessary</td>
+              <td class="py-3 pr-4">7 days</td>
+              <td class="py-3">Keeps workshop staff signed in to the diary. It is not set for customers.</td>
+            </tr>
+            <tr class="border-b border-slate-100">
+              <td class="py-3 pr-4 font-mono text-[11px] text-slate-800">_ga, _ga_*</td>
+              <td class="py-3 pr-4">Analytics</td>
+              <td class="py-3 pr-4">Set by Google</td>
+              <td class="py-3">Google Analytics visit counts, only after you choose Accept analytics.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 class="text-xl font-bold text-slate-900">What is not a cookie</h2>
+      <p>
+        When you check a registration we send that plate to Vehicle Smart from our server. That lookup does not set a tracking cookie on your device.
+      </p>
+
+      <h2 class="text-xl font-bold text-slate-900">Change your choice</h2>
+      <p>
+        Use Cookie settings in the footer to accept or reject optional analytics. Rejecting analytics does not stop you booking online.
+        Questions: <a class="font-semibold text-brand-700" href={`mailto:${business.email}`}>{business.email}</a>
+        or <a class="font-semibold text-brand-700" href={`tel:${business.telephone}`}>{business.telephoneDisplay}</a>.
+      </p>
+    </div>
+  </div>
+</Layout>

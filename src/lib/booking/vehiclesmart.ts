@@ -50,11 +50,8 @@ type VehicleSmartResponse = {
 
 const DEFAULT_URL = 'https://vehiclesmart.com/rest/vehicleData';
 const LOOKUP_CACHE_MS = 60 * 60 * 1000;
-const RATE_WINDOW_MS = 10 * 60 * 1000;
-const RATE_LIMIT = 20;
 
 const lookupCache = new Map<string, { expires: number; vehicle: VehicleLookup }>();
-const rateHits = new Map<string, number[]>();
 
 export class VehicleLookupError extends Error {
   constructor(
@@ -72,18 +69,6 @@ export function vehicleSmartApiKey() {
 
 export function isVehicleSmartConfigured() {
   return vehicleSmartApiKey().length > 0;
-}
-
-export function allowVehicleLookup(ip: string) {
-  const now = Date.now();
-  const recent = (rateHits.get(ip) ?? []).filter((stamp) => now - stamp < RATE_WINDOW_MS);
-  if (recent.length >= RATE_LIMIT) {
-    rateHits.set(ip, recent);
-    return false;
-  }
-  recent.push(now);
-  rateHits.set(ip, recent);
-  return true;
 }
 
 function titleCase(value: string) {

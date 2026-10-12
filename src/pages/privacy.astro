@@ -3,11 +3,13 @@ export const prerender = true;
 
 import Layout from '../layouts/Layout.astro';
 import { business } from '../data/site';
+
+const lastUpdated = '12 October 2026';
 ---
 
 <Layout
   title="Privacy Policy | Bankside MOT & Repair Falkirk"
-  description="How Bankside MOT & Repair collects and uses booking details such as your name, phone number, email and vehicle registration."
+  description="How Bankside MOT & Repair collects, uses and looks after booking details such as your name, phone number, email and vehicle registration."
   breadcrumbs={[
     { name: 'Home', path: '/' },
     { name: 'Privacy Policy', path: '/privacy' },
@@ -17,28 +19,73 @@ import { business } from '../data/site';
     <div class="container mx-auto max-w-3xl px-4 space-y-6 text-sm leading-relaxed text-slate-600">
       <h1 class="text-3xl font-extrabold text-slate-900">Privacy Policy</h1>
       <p>
-        {business.legalName} (“we”) runs the workshop at {business.streetAddress}, {business.addressLocality}, {business.postalCode}. This page explains what we collect when you book online or request a callback.
+        {business.legalName} (“we”) is the data controller for this website. We run the workshop at {business.streetAddress}, {business.addressLocality}, {business.postalCode}.
+        Contact us at <a class="font-semibold text-brand-700" href={`mailto:${business.email}`}>{business.email}</a>
+        or <a class="font-semibold text-brand-700" href={`tel:${business.telephone}`}>{business.telephoneDisplay}</a>.
+        This notice explains what we collect when you book online, look up a registration, request a callback, or visit the site.
       </p>
-      <h2 class="text-xl font-bold text-slate-900">What we collect</h2>
+      <p class="text-xs text-slate-500">Last updated {lastUpdated}.</p>
+
+      <h2 class="text-xl font-bold text-slate-900">What we collect and why</h2>
       <p>
-        Online bookings store your name, phone number, email, vehicle registration, chosen service, date and time, payment preference, and any notes you add. Callback forms store your name, phone number, and message. When you check a registration we send that plate to Vehicle Smart so we can show make, model, fuel and MOT status before you book.
+        <strong class="text-slate-800">Online bookings</strong> store your name, phone number, email, vehicle registration, make and model if the lookup finds it, chosen service, date and time, payment preference, and any notes you add. We use this to reserve a workshop slot, confirm the booking, and keep the garage diary. The lawful basis is the contract to provide the MOT, service or repair you asked for.
       </p>
-      <h2 class="text-xl font-bold text-slate-900">Why we collect it</h2>
       <p>
-        We use this information to reserve a workshop slot, contact you about the booking, and keep a garage diary. If email sending is configured, we also send a confirmation to you and a copy to the workshop inbox.
+        <strong class="text-slate-800">Callback forms</strong> store your name, phone number and message so reception can call you. The lawful basis is our legitimate interest in answering enquiries.
       </p>
+      <p>
+        <strong class="text-slate-800">Registration lookups</strong> send the plate you type to Vehicle Smart so we can show make, model, fuel and MOT status before you book. The lawful basis is the steps needed to take your booking.
+      </p>
+      <p>
+        <strong class="text-slate-800">Workshop diary</strong> keeps customer, vehicle and job records so staff can run the garage. The lawful basis is our legitimate interest in operating the workshop, and legal duties such as accounting records.
+      </p>
+      <p>
+        <strong class="text-slate-800">Website analytics</strong> (Google Analytics) are used only if you choose Accept analytics. The lawful basis is consent. You can withdraw that at any time with Cookie settings in the footer.
+      </p>
+
+      <h2 class="text-xl font-bold text-slate-900">Who we share it with</h2>
+      <p>We do not sell your details. We use these service providers to run the website:</p>
+      <ul class="list-disc space-y-2 pl-5">
+        <li>Cloudflare hosts the website and helps keep it online.</li>
+        <li>Supabase stores booking, customer and vehicle records.</li>
+        <li>Vehicle Smart looks up make, model, fuel and MOT status from the registration you enter.</li>
+        <li>Google Workspace sends booking confirmations and callback emails from {business.email}.</li>
+        <li>Google Analytics measures visits only after you accept optional cookies.</li>
+      </ul>
+      <p>
+        Some of those providers may process data outside the UK. Where that happens they use approved safeguards such as the UK’s adequacy decisions or standard contractual clauses.
+      </p>
+
       <h2 class="text-xl font-bold text-slate-900">Cookies</h2>
       <p>
-        Necessary cookies keep an online booking working and keep workshop staff signed in to the diary. Optional analytics cookies (Google Analytics or Google Ads) are used only if you choose Accept analytics. You can change that at any time with Cookie settings in the footer. Vehicle registration lookups are sent to Vehicle Smart from our server and do not set a tracking cookie on your device.
+        Necessary cookies remember your cookie choice and keep workshop staff signed in to the diary. Optional analytics cookies are used only if you accept them.
+        See the <a href="/cookies" class="font-semibold text-brand-700 underline decoration-brand-200 underline-offset-2 hover:text-brand-800">cookie policy</a> for names, purposes and how long they last.
+        Vehicle registration lookups run on our server and do not set a tracking cookie on your device.
       </p>
+
       <h2 class="text-xl font-bold text-slate-900">How long we keep it</h2>
+      <ul class="list-disc space-y-2 pl-5">
+        <li>Booking, customer and job records stay in the diary for as long as we need them to run the workshop, and usually for six years for accounting.</li>
+        <li>Callback emails are kept in the workshop inbox only as long as needed to return your call.</li>
+        <li>Registration lookup results are cached for about one hour so the same plate is not looked up again immediately.</li>
+        <li>The cookie-choice cookie lasts 180 days. Staff diary login cookies last 7 days.</li>
+      </ul>
+      <p>You can ask us to update or remove details that we no longer need for those purposes.</p>
+
+      <h2 class="text-xl font-bold text-slate-900">Your rights</h2>
       <p>
-        Booking records are kept for as long as needed to run the diary and meet accounting or MOT-related record keeping. You can ask us to update or remove details that we no longer need for those purposes.
+        You can ask us for a copy of the information we hold, ask us to correct it, delete it, restrict how we use it, object to our legitimate-interest use, or receive a portable copy of details you gave us. Where we rely on consent (analytics), you can withdraw it at any time. That does not affect anything already done before you withdrew it.
       </p>
-      <h2 class="text-xl font-bold text-slate-900">Contact</h2>
       <p>
-        Questions: <a class="font-semibold text-brand-700" href={`tel:${business.telephone}`}>{business.telephoneDisplay}</a>
+        Email <a class="font-semibold text-brand-700" href={`mailto:${business.email}`}>{business.email}</a>,
+        call <a class="font-semibold text-brand-700" href={`tel:${business.telephone}`}>{business.telephoneDisplay}</a>,
         or visit the workshop during {business.openingHoursDisplay}.
+      </p>
+
+      <h2 class="text-xl font-bold text-slate-900">Complaints</h2>
+      <p>
+        If you are unhappy with how we handle your information, please contact us first. You also have the right to complain to the UK Information Commissioner’s Office at
+        <a href="https://ico.org.uk" class="font-semibold text-brand-700 underline decoration-brand-200 underline-offset-2 hover:text-brand-800" target="_blank" rel="noopener noreferrer">ico.org.uk</a>.
       </p>
     </div>
   </div>

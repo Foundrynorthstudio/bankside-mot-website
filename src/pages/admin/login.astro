@@ -4,6 +4,7 @@ export const prerender = false;
 import '../../styles/global.css';
 import Logo from '../../components/Logo.astro';
 import { createAdminSession, readAdminSession, verifyAdminLogin } from '../../lib/booking/auth';
+import { consumeRateLimit, isRateLimited, rateLimits } from '../../lib/booking/rate-limit';
 
 if (readAdminSession(Astro.cookies)) {
   return Astro.redirect('/admin');
@@ -14,14 +15,20 @@ if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
   const username = String(form.get('username') ?? '');
   const password = String(form.get('password') ?? '');
+  const ip = Astro.clientAddress || 'unknown';
   try {
-    const user = await verifyAdminLogin(username, password);
-    if (user) {
-      createAdminSession(Astro.cookies, user.username);
-      const next = Astro.url.searchParams.get('next') || '/admin';
-      return Astro.redirect(next.startsWith('/admin') ? next : '/admin');
+    if (await isRateLimited('login', ip, rateLimits.login.limit, rateLimits.login.windowMs)) {
+      error = 'Too many login attempts. Try again in a few minutes.';
+    } else {
+      const user = await verifyAdminLogin(username, password);
+      if (user) {
+        createAdminSession(Astro.cookies, user.username);
+        const next = Astro.url.searchParams.get('next') || '/admin';
+        return Astro.redirect(next.startsWith('/admin') ? next : '/admin');
+      }
+      await consumeRateLimit('login', ip, rateLimits.login.limit, rateLimits.login.windowMs);
+      error = 'Those details were not recognised.';
     }
-    error = 'Those details were not recognised.';
   } catch (caught) {
     console.error(caught);
     error = 'Could not reach the workshop database. Try again in a moment.';

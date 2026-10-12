@@ -1,17 +1,23 @@
 import type { APIRoute } from 'astro';
 import { createBooking, SlotTakenError } from '../../lib/booking/db';
 import { sendBookingEmails } from '../../lib/booking/email';
+import { jsonNoStore } from '../../lib/booking/http';
+import { consumeRateLimit, rateLimits } from '../../lib/booking/rate-limit';
 import { slotsForService } from '../../lib/booking/slots';
 import { validatePublicBooking } from '../../lib/booking/validate';
 
 export const prerender = false;
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async ({ request, clientAddress }) => {
+  if (!(await consumeRateLimit('booking', clientAddress, rateLimits.booking.limit, rateLimits.booking.windowMs))) {
+    return jsonNoStore({ error: 'Too many booking attempts. Please call the garage.' }, 429);
+  }
+
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return Response.json({ error: 'Invalid booking details.' }, { status: 400 });
+    return jsonNoStore({ error: 'Invalid booking details.' }, 400);
   }
 
   const { errors, value } = validatePublicBooking({
@@ -29,13 +35,13 @@ export const POST: APIRoute = async ({ request }) => {
   }, { publicOnly: true });
 
   if (errors.length > 0 || !value) {
-    return Response.json({ error: errors[0], errors }, { status: 400 });
+    return jsonNoStore({ error: errors[0], errors }, 400);
   }
 
   const slots = await slotsForService(value.date, value.service);
   const slot = slots.find((item) => item.time === value.time);
   if (!slot?.available) {
-    return Response.json({ error: 'That time slot is no longer available.', slots }, { status: 409 });
+    return jsonNoStore({ error: 'That time slot is no longer available.', slots }, 409);
   }
 
   try {
@@ -48,18 +54,17 @@ export const POST: APIRoute = async ({ request }) => {
       console.error('Booking saved but email failed:', error);
     }
 
-    return Response.json({
+    return jsonNoStore({
       ok: true,
       ref: booking.id,
-      booking,
       emailSent,
       slots: await slotsForService(value.date, value.service),
     });
   } catch (error) {
     if (error instanceof SlotTakenError) {
-      return Response.json({ error: error.message, slots: await slotsForService(value.date, value.service) }, { status: 409 });
+      return jsonNoStore({ error: error.message, slots: await slotsForService(value.date, value.service) }, 409);
     }
     console.error(error);
-    return Response.json({ error: 'Could not save the booking. Please call the garage.' }, { status: 500 });
+    return jsonNoStore({ error: 'Could not save the booking. Please call the garage.' }, 500);
   }
 };

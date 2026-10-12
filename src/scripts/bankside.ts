@@ -9,7 +9,8 @@ function readCookieConsent(): '' | 'accepted' | 'rejected' {
 }
 
 function writeCookieConsent(value: 'accepted' | 'rejected') {
-  document.cookie = `${CONSENT_COOKIE}=${value}; Path=/; Max-Age=${60 * 60 * 24 * 180}; SameSite=Lax`;
+  const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+  document.cookie = `${CONSENT_COOKIE}=${value}; Path=/; Max-Age=${60 * 60 * 24 * 180}; SameSite=Lax${secure}`;
 }
 
 function loadAnalytics() {

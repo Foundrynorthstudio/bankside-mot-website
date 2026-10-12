@@ -29,7 +29,7 @@ type SqliteDatabase = {
   };
 };
 
-function isHostedRuntime() {
+export function isHostedRuntime() {
   return Boolean(
     process.env.NETLIFY ||
     process.env.CF_PAGES ||
