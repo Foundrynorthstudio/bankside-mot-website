@@ -1,0 +1,22 @@
+---
+description: Frontend UI and Astro component conventions
+globs:
+  - src/components/**/*
+  - src/layouts/**/*
+  - src/styles/**/*
+  - src/scripts/**/*
+  - src/data/**/*
+  - src/pages/**/*.astro
+alwaysApply: false
+---
+
+# Frontend conventions
+
+- Use PascalCase flat `.astro` components under `src/components/`. Do not add React, Vue, Svelte, or Astro `client:*` islands.
+- Drive public interactivity with Alpine.js: `Layout.astro` sets `x-data="banksideApp"`; keep booking state and API calls in `src/scripts/bankside.ts` and UI steps in `BookingModal.astro`.
+- Use `AdminLayout.astro` for workshop pages. Keep diary autocomplete in `src/scripts/admin-diary.ts`. Prefer form POST + redirect for admin mutations, not new public JSON write APIs.
+- Style with Tailwind utilities and brand tokens in `src/styles/global.css` (`--color-brand-*`, Plus Jakarta). Do not introduce CSS modules or alternate UI kits.
+- Put marketing constants, FAQs, reviews, areas, and team copy in `src/data/*`. Do not hardcode that content across pages.
+- Keep marketing pages `export const prerender = true`. Keep `/admin/*` pages `prerender = false`. Preserve `trailingSlash: 'never'`.
+- Reuse `src/lib/seo.ts` and existing Analytics/CookieBanner consent patterns. Do not load GA/Ads without consent gating.
+- Match existing layout hierarchy: Header/Footer/MobileActionBar on public pages; no card-heavy redesigns unless fixing a broken interaction.

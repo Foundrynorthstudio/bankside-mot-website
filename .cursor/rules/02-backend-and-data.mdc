@@ -1,0 +1,21 @@
+---
+description: API, database, auth, and booking domain rules
+globs:
+  - src/pages/api/**/*
+  - src/lib/**/*
+  - src/middleware.ts
+  - scripts/**/*
+  - wrangler.jsonc
+alwaysApply: false
+---
+
+# Backend and data
+
+- Put booking domain code in `src/lib/booking/`. Read config via `env()` from `config.ts`. Store money as integer pence. Generate IDs with `nextId()`. Validate with hand-rolled helpers in `validate.ts` — do not add Zod.
+- Keep API routes `prerender = false`. Return JSON through `jsonNoStore()`. Apply existing rate-limit buckets. Soft-fail email after a successful booking save.
+- Protect `/admin/*` and `/api/admin/*` via `middleware.ts` and the HMAC cookie session in `auth.ts`. Do not add unauthenticated write endpoints.
+- Prefer SSR form POSTs on admin Astro pages for mutations. Keep `/api/admin/directory` read-only search.
+- Schema lives in `schema.sql` and auto-migrates on first DB use. Treat migrations, RLS (`ENABLE ROW LEVEL SECURITY`), and unique active-bay slot indexes as production-sensitive. Keep SQLite and Postgres paths in `database.ts` working together.
+- Resolve DB as Hyperdrive binding → `DATABASE_URL` → `SUPABASE_DB_URL` → local `data/bookings.db`. Do not retarget production Hyperdrive/KV IDs in `wrangler.jsonc` casually.
+- Never point `scripts/reset-workshop.ts` at a live database. Never rely on local auth defaults (`bankside-local`, weak session fallbacks) in hosted envs — require `SESSION_SECRET` and real staff/admin credentials.
+- MOT diary is the live online booking path; do not assume the service diary admin UI is complete. Cloudflare Workers is the deploy target, not Netlify.
