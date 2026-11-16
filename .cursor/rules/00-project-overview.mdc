@@ -1,0 +1,16 @@
+---
+description: Bankside MOT project overview for all agents
+alwaysApply: true
+---
+
+# Bankside MOT
+
+Garage marketing site + MOT booking + workshop admin for Bankside MOT & Repair (Falkirk). Live site: https://banksidemot.com.
+
+**Stack:** Astro 7, Cloudflare Workers (`@astrojs/cloudflare`), Tailwind 4, Alpine.js, Postgres via Hyperdrive (SQLite at `data/bookings.db` locally), nodemailer SMTP, Vehicle Smart VRM lookup. Node `>=22.12.0`. No React islands, no Stripe, no D1.
+
+**Split:** Prerender marketing pages. SSR only `/admin/*` and `/api/*`. Domain logic belongs in `src/lib/booking/` — reuse it; do not duplicate booking, auth, slots, or DB access elsewhere.
+
+**Deploy source of truth:** `wrangler.jsonc` (Workers bindings `HYPERDRIVE`, `SESSION` KV). Treat `netlify.toml.legacy` as unused legacy.
+
+**Hard stops:** Never run `scripts/reset-workshop.ts` against production. Never commit secrets or real SMTP/API keys. Do not add online card payments. Read `AGENTS.md` for cold-start commands.
