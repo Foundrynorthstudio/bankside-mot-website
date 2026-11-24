@@ -169,6 +169,18 @@ function schemaStatements(sql: string) {
     .filter(Boolean);
 }
 
+/** Public tables exposed to Supabase Data API unless RLS is enabled. */
+const WORKSHOP_TABLES = [
+  'bookings',
+  'customers',
+  'customer_notes',
+  'vehicles',
+  'customer_vehicle_links',
+  'jobs',
+  'staff',
+  'email_templates',
+] as const;
+
 async function migratePostgres() {
   if (migrated) return;
   const client = getPg();
@@ -178,14 +190,18 @@ async function migratePostgres() {
   const tables = new Set(existing.map((row) => row.tablename));
   const ready = ['bookings', 'customers', 'vehicles', 'jobs', 'staff'].every((name) => tables.has(name));
   if (!ready) {
-    const skipRls = tables.has('bookings');
     for (const statement of schemaStatements(schemaSql)) {
-      if (skipRls && /ENABLE ROW LEVEL SECURITY/i.test(statement)) continue;
+      // Skip RLS/REVOKE here; ensurePostgresRls always runs below so
+      // existing databases get protected even when CREATE TABLE is skipped,
+      // and local Postgres without Supabase roles is not broken by REVOKE.
+      if (/ENABLE ROW LEVEL SECURITY/i.test(statement)) continue;
+      if (/^REVOKE\b/i.test(statement)) continue;
       await client.unsafe(statement);
     }
   }
   await seedStaffIfEmpty();
   await ensureEmailTemplatesTable();
+  await ensurePostgresRls();
   migrated = true;
 }
 
@@ -199,6 +215,34 @@ async function ensureEmailTemplatesTable() {
       updated_at TEXT NOT NULL
     )
   `);
+}
+
+/**
+ * Lock down public tables for Supabase's Data API.
+ * The Workers app uses a direct Postgres connection (owner/service role),
+ * which bypasses RLS. Enabling RLS with no anon/authenticated policies
+ * (and revoking those roles) clears rls_disabled_in_public without
+ * changing booking behaviour.
+ */
+async function ensurePostgresRls() {
+  const client = getPg();
+  const existing = (await client.unsafe(
+    `SELECT tablename FROM pg_tables WHERE schemaname = 'public'`,
+  )) as { tablename: string }[];
+  const tables = new Set(existing.map((row) => row.tablename));
+
+  const apiRoles = (await client.unsafe(
+    `SELECT rolname FROM pg_roles WHERE rolname IN ('anon', 'authenticated')`,
+  )) as { rolname: string }[];
+  const roles = apiRoles.map((row) => row.rolname);
+
+  for (const table of WORKSHOP_TABLES) {
+    if (!tables.has(table)) continue;
+    await client.unsafe(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`);
+    for (const role of roles) {
+      await client.unsafe(`REVOKE ALL ON TABLE ${table} FROM ${role}`);
+    }
+  }
 }
 
 function hashStaffPassword(password: string) {
