@@ -107,6 +107,8 @@ CREATE TABLE IF NOT EXISTS email_templates (
   updated_at TEXT NOT NULL
 );
 
+-- Safe to re-run. App access is via direct Postgres (bypasses RLS);
+-- these statements block anonymous Supabase Data API CRUD.
 ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE customer_notes ENABLE ROW LEVEL SECURITY;
@@ -115,3 +117,12 @@ ALTER TABLE customer_vehicle_links ENABLE ROW LEVEL SECURITY;
 ALTER TABLE jobs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE staff ENABLE ROW LEVEL SECURITY;
 ALTER TABLE email_templates ENABLE ROW LEVEL SECURITY;
+
+REVOKE ALL ON TABLE bookings FROM anon, authenticated;
+REVOKE ALL ON TABLE customers FROM anon, authenticated;
+REVOKE ALL ON TABLE customer_notes FROM anon, authenticated;
+REVOKE ALL ON TABLE vehicles FROM anon, authenticated;
+REVOKE ALL ON TABLE customer_vehicle_links FROM anon, authenticated;
+REVOKE ALL ON TABLE jobs FROM anon, authenticated;
+REVOKE ALL ON TABLE staff FROM anon, authenticated;
+REVOKE ALL ON TABLE email_templates FROM anon, authenticated;
